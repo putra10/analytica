@@ -24,4 +24,4 @@ npm run build   # keluaran statis di dist/
 
 ## Deploy (Vercel Hobby)
 
-Import repo, set **Root Directory** ke `analytica`, preset **Vite**. Keluaran `dist/`. Tidak ada variabel lingkungan.
+Import repo ini, preset **Vite** (root repo = proyek). Keluaran `dist/`. Tidak ada variabel lingkungan. Halaman: `#/` beranda, `#/app/<modul>` laboratorium, `#/summary` ringkasan rumus, `#/about` penjelasan.
