@@ -1,0 +1,186 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ==========================================================================
+   Design tokens, same family as ASL Transcriber / transitlab: warm paper,
+   one warm accent, serif display, mono eyebrows. Dark theme keys off `.dark`
+   on <html> (set pre-paint by the inline script in index.html).
+   ========================================================================== */
+:root {
+  --bg: oklch(98% 0.008 65);
+  --surface: oklch(100% 0 0);
+  --surface-2: oklch(96% 0.01 65);
+  --fg: oklch(20% 0.02 45);
+  --fg-2: oklch(32% 0.02 45);
+  --muted: oklch(48% 0.02 45);
+  --hint: oklch(62% 0.02 45);
+  --border: oklch(90% 0.012 65);
+  --border-strong: oklch(82% 0.014 65);
+  --accent: oklch(52% 0.2 285);
+  --accent-hover: oklch(46% 0.21 285);
+  --accent-soft: oklch(94% 0.04 285);
+  --accent-ink: oklch(99% 0 0);
+  --success: oklch(52% 0.14 155);
+  --warn: oklch(62% 0.16 75);
+  --danger: oklch(55% 0.19 25);
+  --violet: oklch(55% 0.15 330);
+  --focus-ring: 0 0 0 3px oklch(52% 0.2 285 / 0.35);
+
+  /* the always-dark visualization stage (ASL's camera panel) */
+  --stage-bg: oklch(17% 0.02 275);
+  --stage-fg: oklch(96% 0.006 60);
+  --stage-muted: oklch(72% 0.014 260);
+  --stage-hint: oklch(58% 0.014 260);
+  --stage-border: oklch(30% 0.02 270);
+
+  --font-display: "Instrument Serif", "Iowan Old Style", Palatino, Georgia, serif;
+  --font-body: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 22px;
+  --shadow-sm: 0 1px 2px oklch(20% 0.02 45 / 0.06);
+  --shadow: 0 12px 32px oklch(20% 0.02 45 / 0.08);
+  --shadow-stage: 0 30px 70px oklch(15% 0.02 30 / 0.28);
+  color-scheme: light;
+}
+
+.dark {
+  --bg: oklch(15% 0.012 40);
+  --surface: oklch(19% 0.014 40);
+  --surface-2: oklch(23% 0.016 40);
+  --fg: oklch(96% 0.005 65);
+  --fg-2: oklch(88% 0.008 65);
+  --muted: oklch(72% 0.014 45);
+  --hint: oklch(58% 0.014 45);
+  --border: oklch(28% 0.02 40);
+  --border-strong: oklch(38% 0.02 40);
+  --accent: oklch(76% 0.15 285);
+  --accent-hover: oklch(82% 0.14 285);
+  --accent-soft: oklch(30% 0.07 285);
+  --accent-ink: oklch(15% 0.02 40);
+  --success: oklch(72% 0.14 155);
+  --warn: oklch(78% 0.15 80);
+  --danger: oklch(70% 0.17 25);
+  --violet: oklch(78% 0.12 330);
+  --focus-ring: 0 0 0 3px oklch(76% 0.15 285 / 0.4);
+  --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.3);
+  --shadow: 0 12px 32px oklch(0% 0 0 / 0.4);
+  --shadow-stage: 0 30px 70px oklch(0% 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+/* Tailwind utilities used across the components resolve to the tokens, so the
+   whole app re-themes from one place. The slate scale is remapped on purpose:
+   400/500 = muted text, 200/100/white = foreground, 900/800 = raised surface. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--surface);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-white: var(--fg);
+  --color-slate-50: var(--surface);
+  --color-slate-100: var(--fg);
+  --color-slate-200: var(--fg);
+  --color-slate-300: var(--fg-2);
+  --color-slate-400: var(--muted);
+  --color-slate-500: var(--hint);
+  --color-slate-600: var(--hint);
+  --color-slate-700: var(--border-strong);
+  --color-slate-800: var(--surface-2);
+  --color-slate-900: var(--surface-2);
+  --color-emerald-300: var(--success);
+  --color-rose-300: var(--danger);
+  --color-amber-300: var(--warn);
+  --color-yellow-200: var(--warn);
+  --color-yellow-300: var(--warn);
+  --color-yellow-400: var(--warn);
+  --color-sky-300: oklch(70% 0.13 240);
+  --color-violet-300: var(--violet);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+/* Inside a stage the same utilities flip to light-on-dark. */
+.stage {
+  --surface: var(--stage-bg);
+  --surface-2: oklch(24% 0.02 270);
+  --fg: var(--stage-fg);
+  --fg-2: oklch(86% 0.01 260);
+  --muted: var(--stage-muted);
+  --hint: var(--stage-hint);
+  --border: var(--stage-border);
+  --border-strong: oklch(40% 0.02 270);
+  --accent-ink: var(--stage-bg);
+  color: var(--stage-fg);
+  color-scheme: dark;
+}
+
+@layer base {
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; overflow-x: clip; }
+html, body, #root { min-height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background 200ms ease, color 200ms ease;
+}
+
+/* Scrollbars: thin, no track background, in every scroll container. */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background-color: var(--hint); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+::selection { background: var(--accent-soft); color: var(--fg); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible, [role="switch"]:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+}
+
+.font-display { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.02em; line-height: 1.05; }
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.eyebrow::before {
+  content: '';
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 20%, transparent);
+  animation: pulse 1.6s ease-out infinite;
+}
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 40%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
+.section-number {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--hint);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 5px;
+  line-height: 1;
+}
+
+/* KaTeX picks up the theme */
+.katex { font-size: 1.04em; color: inherit; }

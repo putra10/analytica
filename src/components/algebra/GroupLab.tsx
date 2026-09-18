@@ -1,0 +1,240 @@
+import { useMemo, useState } from 'react'
+import { Grid3x3, Layers, Shuffle } from 'lucide-react'
+import {
+  GROUP_CATALOG, center, cosets, cyclicHom, elementOrder, generators, isAbelian, isCyclic, isNormal, isomorphism, mul,
+  orderProfile, permutationGroupFrom, quotient, range, subgroups, type Group,
+} from '../../lib/group-theory'
+import { useLang, useT } from '../../lib/i18n'
+import { cn } from '../../lib/utils'
+import { Layout } from '../ui/Layout'
+import { MathCard, Chip, TextField, Toggle } from '../ui/MathCard'
+import { Tex, FormulaBlock } from '../ui/FormulaBlock'
+
+const HUES = (n: number, i: number) => `hsl(${(i * 360) / n} 70% 55%)`
+/** Unicode element labels → TeX (subscripts, superscripts, minus, spaces inside cycles). */
+export const labelTex = (s: string) =>
+  s.replace(/([₀-₉]+)/g, (m) => `_{${[...m].map((c) => '₀₁₂₃₄₅₆₇₈₉'.indexOf(c)).join('')}}`)
+    .replace(/([⁰-⁹]+)/g, (m) => `^{${[...m].map((c) => '⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c)).join('')}}`)
+    .replace(/−/g, '-').replace(/ /g, '\\,')
+const setTex = (g: Group, elems: number[]) => `\\{${elems.map((i) => labelTex(g.labels[i])).join(',\\ ')}\\}`
+
+/** Coloured Cayley table; cells coloured by element, or by coset of H when given. */
+function CayleyTable({ g, cosetOf, side }: { g: Group; cosetOf?: number[]; side: 'left' | 'right' }) {
+  const cs = useMemo(() => (cosetOf ? cosets(g, cosetOf, side) : null), [g, cosetOf, side])
+  const cosetIndex = useMemo(() => {
+    const m = new Map<number, number>()
+    cs?.forEach((c, i) => c.elems.forEach((x) => m.set(x, i)))
+    return m
+  }, [cs])
+  const color = (x: number) => (cs ? HUES(cs.length, cosetIndex.get(x)!) : HUES(g.order, x))
+  const cell = g.order > 12 ? 'h-5 min-w-5 text-[9px]' : g.order > 8 ? 'h-7 min-w-7 text-[10px]' : 'h-9 min-w-9 text-xs'
+  return (
+    <div className="h-full w-full overflow-auto p-3">
+      <table className="border-separate border-spacing-0.5 font-mono">
+        <thead>
+          <tr>
+            <th className={cn('sticky left-0 top-0 bg-card text-slate-500', cell)}>·</th>
+            {range(g.order).map((b) => <th key={b} className={cn('sticky top-0 bg-card font-normal text-slate-300', cell)}>{g.labels[b]}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {range(g.order).map((a) => (
+            <tr key={a}>
+              <th className={cn('sticky left-0 bg-card font-normal text-slate-300', cell)}>{g.labels[a]}</th>
+              {range(g.order).map((b) => {
+                const x = mul(g, a, b)
+                return (
+                  <td key={b} className={cn('rounded-sm text-center text-slate-900', cell)} style={{ background: color(x), opacity: 0.9 }} title={`${g.labels[a]} · ${g.labels[b]} = ${g.labels[x]}`}>
+                    {g.labels[x]}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+export function GroupLab() {
+  const t = useT()
+  const { lang } = useLang()
+  const [gid, setGid] = useState('S3')
+  const [hid, setHid] = useState('D3')
+  const [subIdx, setSubIdx] = useState<number | null>(null)
+  const [side, setSide] = useState<'left' | 'right'>('right')
+  const [homImg, setHomImg] = useState(0)
+  const [customText, setCustomText] = useState('(1 2 3 4), (1 3)')
+  const customGroup = useMemo(() => {
+    try { return { ok: true as const, g: permutationGroupFrom(customText) } } catch (e) { return { ok: false as const, error: (e as Error).message } }
+  }, [customText])
+
+  const g = useMemo(() => (gid === 'custom' && customGroup.ok ? customGroup.g : GROUP_CATALOG.find((c) => c.id === gid)!.make()), [gid, customGroup])
+  const h = useMemo(() => (hid === 'custom' && customGroup.ok ? customGroup.g : GROUP_CATALOG.find((c) => c.id === hid)!.make()), [hid, customGroup])
+  const subs = useMemo(() => subgroups(g), [g])
+  const H = subIdx !== null ? subs[subIdx] : undefined
+  const normal = H ? isNormal(g, H) : false
+  const cs = H ? cosets(g, H, side) : []
+  const Q = H && normal && H.length < g.order ? quotient(g, H) : null
+  const abelian = isAbelian(g)
+  const cyc = isCyclic(g)
+  const gens = cyc ? generators(g) : []
+  const Z = center(g)
+  const iso = useMemo(() => isomorphism(g, h), [g, h])
+  const hom = cyc ? cyclicHom(g, gens[0], h, homImg) : null
+
+  const pick = (id: string) => { setGid(id); setSubIdx(null) }
+  const H_CATALOG = [...GROUP_CATALOG.map((c) => ({ id: c.id, name: c.make().name })), ...(customGroup.ok ? [{ id: 'custom', name: customGroup.g.name }] : [])]
+
+  return (
+    <Layout
+      canvas={<CayleyTable g={g} cosetOf={H} side={side} />}
+      controls={
+        <div className="space-y-4">
+          <MathCard title={t('Grup G', 'Group G')} icon={<Grid3x3 size={16} />}>
+            <div className="flex flex-wrap gap-1.5">
+              {GROUP_CATALOG.map((c) => <Chip key={c.id} active={c.id === gid} onClick={() => pick(c.id)}>{c.make().name}</Chip>)}
+              <Chip active={gid === 'custom'} onClick={() => pick('custom')}>{t('Kustom ⟨…⟩', 'Custom ⟨…⟩')}</Chip>
+            </div>
+            <div className="mt-2">
+              <label className="mb-1 block text-[11px] text-slate-500">{t('Subgrup Sₙ yang dibangun oleh permutasi (notasi siklus, pisahkan koma):', 'Subgroup of Sₙ generated by permutations (cycle notation, comma separated):')}</label>
+              <TextField value={customText} onChange={(v) => { setCustomText(v); if (gid !== 'custom') pick('custom') }} placeholder="(1 2 3 4), (1 3)" invalid={gid === 'custom' && !customGroup.ok} />
+              {gid === 'custom' && !customGroup.ok && <p className="mt-1 text-[11px] text-rose-300">{customGroup.error}</p>}
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">{g.description[lang]}</p>
+            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-300">
+              <span><Tex tex={`|G| = ${g.order}`} /></span>
+              <span>{abelian ? t('abelian', 'abelian') : t('tak-abelian', 'non-abelian')}</span>
+              <span>{cyc ? <>{t('siklik', 'cyclic')}, <Tex tex={`G = (${labelTex(g.labels[gens[0]])})`} /></> : t('tidak siklik', 'not cyclic')}</span>
+              <span><Tex tex={`Z(G) = ${setTex(g, Z)}`} /></span>
+            </div>
+            <p className="mt-2 text-[11px] text-slate-500">
+              {t('Orde unsur: ', 'Element orders: ')}
+              {orderProfile(g).map(([o, c]) => `${c}×${t('orde', 'order')} ${o}`).join(', ')}
+            </p>
+          </MathCard>
+
+          <MathCard title={<span>{t('Subgrup', 'Subgroups')} <Tex tex="H \le G" /></span>} icon={<Layers size={16} />}>
+            <div className="flex flex-wrap gap-1.5">
+              {subs.map((s, i) => (
+                <Chip key={i} active={subIdx === i} onClick={() => setSubIdx(subIdx === i ? null : i)}>
+                  {s.length === 1 ? `{e}` : s.length === g.order ? 'G' : `|H|=${s.length}: ${s.slice(0, 3).map((x) => g.labels[x]).join(',')}${s.length > 3 ? ',…' : ''}`}
+                </Chip>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-slate-500">
+              {t(`${subs.length} subgrup. Orde setiap subgrup membagi |G| (Lagrange).`, `${subs.length} subgroups. Every subgroup order divides |G| (Lagrange).`)}
+            </p>
+            {H && (
+              <div className="mt-2 space-y-2">
+                <Toggle label={t('Koset kanan Ha (mati: koset kiri aH)', 'Right cosets Ha (off: left cosets aH)')} checked={side === 'right'} onChange={(v) => setSide(v ? 'right' : 'left')} />
+                <p className="text-[11px] text-slate-500">{t('Tabel Cayley diwarnai menurut koset.', 'The Cayley table is coloured by coset.')}</p>
+              </div>
+            )}
+          </MathCard>
+        </div>
+      }
+      theory={
+        <div className="grid gap-4 lg:grid-cols-3">
+          <MathCard title={t('Koset, Lagrange, subgrup normal', 'Cosets, Lagrange, normal subgroups')} icon={<Layers size={16} />}>
+            {H ? (
+              <div className="space-y-1">
+                <FormulaBlock tex={`H = ${setTex(g, H)},\\quad |H| = ${H.length},\\quad [G:H] = \\frac{|G|}{|H|} = ${g.order / H.length}`} />
+                <div className="max-h-40 space-y-0.5 overflow-auto text-xs">
+                  {cs.map((c, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: HUES(cs.length, i) }} />
+                      <Tex tex={`${side === 'right' ? `H${labelTex(g.labels[c.rep])}` : `${labelTex(g.labels[c.rep])}H`} = ${setTex(g, c.elems)}`} />
+                    </div>
+                  ))}
+                </div>
+                <p className={cn('text-xs', normal ? 'text-emerald-300' : 'text-rose-300')}>
+                  {normal
+                    ? t(<>Koset kiri = koset kanan untuk setiap a: <Tex tex="H \lhd G" /> (subgrup normal).</>, <>Left cosets = right cosets for every a: <Tex tex="H \lhd G" /> (normal subgroup).</>)
+                    : t(<>Ada a dengan <Tex tex="aH \neq Ha" />: H tidak normal. Ubah saklar koset untuk membandingkan.</>, <>Some a has <Tex tex="aH \neq Ha" />: H is not normal. Flip the coset switch to compare.</>)}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">{t('Pilih subgrup H.', 'Pick a subgroup H.')}</p>
+            )}
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+              {t(<>Teorema Lagrange (2.4): jika G berhingga dan <Tex tex="H \le G" /> maka <Tex tex="|H| \mid |G|" />; koset-koset <Tex tex="Ha" /> mempartisi G menjadi <Tex tex="[G:H]" /> kelas berukuran sama. Akibat: orde setiap unsur membagi <Tex tex="|G|" />, dan grup berorde prima pasti siklik.</>,
+                 <>Lagrange's theorem (2.4): if G is finite and <Tex tex="H \le G" /> then <Tex tex="|H| \mid |G|" />; the cosets <Tex tex="Ha" /> partition G into <Tex tex="[G:H]" /> classes of equal size. Consequently every element order divides <Tex tex="|G|" />, and a group of prime order is cyclic.</>)}
+            </p>
+          </MathCard>
+
+          <MathCard title={t('Grup faktor G/N', 'Factor group G/N')} icon={<Grid3x3 size={16} />}>
+            {Q ? (
+              <div className="space-y-2">
+                <FormulaBlock tex={`|G/N| = ${Q.order}`} />
+                <div className="overflow-auto">
+                  <table className="border-separate border-spacing-0.5 font-mono text-[10px]">
+                    <thead><tr><th className="text-slate-500">·</th>{range(Q.order).map((b) => <th key={b} className="px-1 font-normal text-slate-300">{Q.labels[b]}</th>)}</tr></thead>
+                    <tbody>
+                      {range(Q.order).map((a) => (
+                        <tr key={a}>
+                          <th className="px-1 font-normal text-slate-300">{Q.labels[a]}</th>
+                          {range(Q.order).map((b) => <td key={b} className="rounded-sm px-1 text-center text-slate-900" style={{ background: HUES(Q.order, mul(Q, a, b)) }}>{Q.labels[mul(Q, a, b)]}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-slate-400">
+                  {t(<>Perkalian koset <Tex tex="(Na)(Nb) = N(ab)" /> terdefinisi dengan baik karena N normal (2.6). </>, <>Coset multiplication <Tex tex="(Na)(Nb) = N(ab)" /> is well defined because N is normal (2.6). </>)}
+                  {isAbelian(Q) ? t('G/N abelian.', 'G/N is abelian.') : t('G/N tak-abelian.', 'G/N is non-abelian.')}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">
+                {H && !normal ? t('H tidak normal: G/H bukan grup.', 'H is not normal: G/H is not a group.') : t('Pilih subgrup normal sejati N untuk membentuk G/N.', 'Pick a proper normal subgroup N to form G/N.')}
+              </p>
+            )}
+          </MathCard>
+
+          <MathCard title={t('Isomorfisma & homomorfisma', 'Isomorphism & homomorphism')} icon={<Shuffle size={16} />}>
+            <p className="mb-1 text-[11px] text-slate-500">{t('Grup pembanding H:', 'Comparison group H:')}</p>
+            <div className="flex flex-wrap gap-1">
+              {H_CATALOG.map((c) => <Chip key={c.id} active={c.id === hid} onClick={() => { setHid(c.id); setHomImg(0) }} className="px-1.5 py-0.5 text-[10px]">{c.name}</Chip>)}
+            </div>
+            <p className="mt-2 text-sm">
+              <Tex tex={`${g.tex} ${iso.isomorphic ? '\\cong' : '\\not\\cong'} ${h.tex}`} />
+              <span className="ml-2 text-xs text-slate-400">
+                {iso.reason === 'order' && t('(orde berbeda)', '(different orders)')}
+                {iso.reason === 'abelian' && t('(satu abelian, satu tidak)', '(one abelian, one not)')}
+                {iso.reason === 'profile' && t('(banyaknya unsur tiap orde berbeda)', '(different numbers of elements of each order)')}
+                {iso.reason === 'search' && t('(tidak ada bijeksi yang mengawetkan operasi)', '(no operation-preserving bijection)')}
+                {iso.isomorphic && iso.map && <> {t('via', 'via')} <Tex tex={`${g.labels[1] ?? ''} \\mapsto ${labelTex(h.labels[iso.map[1]] ?? '')}`} /></>}
+              </span>
+            </p>
+            {cyc && (
+              <div className="mt-2 border-t border-border pt-2">
+                <p className="text-[11px] text-slate-500">{t(<>Homomorfisma <Tex tex={`\\varphi: ${g.tex} \\to ${h.tex}`} /> ditentukan oleh bayangan pembangkit; pilih <Tex tex={`\\varphi(${labelTex(g.labels[gens[0]])})`} />:</>, <>A homomorphism <Tex tex={`\\varphi: ${g.tex} \\to ${h.tex}`} /> is fixed by the image of the generator; choose <Tex tex={`\\varphi(${labelTex(g.labels[gens[0]])})`} />:</>)}</p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {range(h.order).map((y) => {
+                    const ok = g.order % elementOrder(h, y) === 0
+                    return <Chip key={y} active={homImg === y} disabled={!ok} onClick={() => setHomImg(y)} className="px-1.5 py-0.5 text-[10px]">{h.labels[y]}</Chip>
+                  })}
+                </div>
+                {hom ? (
+                  <div className="mt-1 space-y-0.5">
+                    <FormulaBlock tex={`\\ker\\varphi = ${setTex(g, hom.kernel)},\\quad \\varphi(G) = ${setTex(h, hom.image)}`} />
+                    <FormulaBlock tex={`G/\\ker\\varphi \\cong \\varphi(G),\\quad ${g.order}/${hom.kernel.length} = ${hom.image.length}`} />
+                    <p className="text-xs text-slate-400">{t('Teorema homomorfisma pertama (2.7.1): ker φ normal dan G/ker φ ≅ φ(G).', 'First homomorphism theorem (2.7.1): ker φ is normal and G/ker φ ≅ φ(G).')}</p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-rose-300">{t('Syarat: orde bayangan harus membagi orde pembangkit.', 'Condition: the order of the image must divide the order of the generator.')}</p>
+                )}
+              </div>
+            )}
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+              {t(<>Invarian isomorfisma: orde, keabelan, banyaknya unsur tiap orde. Bila semuanya cocok, program mencari bijeksi <Tex tex="\varphi" /> dengan <Tex tex="\varphi(ab) = \varphi(a)\varphi(b)" /> dari bayangan pembangkit.</>,
+                 <>Isomorphism invariants: order, commutativity, number of elements of each order. When they all agree, the program searches for a bijection <Tex tex="\varphi" /> with <Tex tex="\varphi(ab) = \varphi(a)\varphi(b)" /> from generator images.</>)}
+            </p>
+          </MathCard>
+        </div>
+      }
+    />
+  )
+}
