@@ -31,13 +31,6 @@ export function Landing() {
               <BookOpen size={15} /> {t('Ringkasan rumus', 'Formula summary')}
             </a>
           </div>
-          <ul className="mt-8 flex flex-wrap gap-6 text-[11px] text-slate-500">
-            {[
-              { b: '3', s: t('mata kuliah, 11 laboratorium', 'courses, 11 labs') },
-              { b: 'ID / EN', s: t('teks teori dua bahasa', 'bilingual theory text') },
-              { b: '0 server', s: t('semua hitungan di peramban Anda', 'every computation in your browser') },
-            ].map((x) => <li key={x.b}><b className="block font-display text-[22px] tracking-tight text-slate-100">{x.b}</b>{x.s}</li>)}
-          </ul>
         </div>
         <div className="stage relative overflow-hidden rounded-[var(--radius-lg)] border border-border shadow-[var(--shadow-stage)]" style={{ background: 'var(--stage-bg)' }}>
           <Hero />

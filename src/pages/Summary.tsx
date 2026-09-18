@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, Lightbulb } from 'lucide-react'
+import { AlertTriangle, ArrowUpRight, Lightbulb } from 'lucide-react'
 import { SUMMARY } from '../content/summary'
 import { useLang, useT } from '../lib/i18n'
 import { href } from '../lib/router'
@@ -19,8 +19,8 @@ export function Summary({ section }: { section?: string }) {
         <span className="eyebrow">{t('Ringkasan rumus & teori', 'Formula & theory summary')}</span>
         <h1 className="font-display mt-2 text-[clamp(30px,4vw,46px)] text-slate-100">{t('Yang perlu diingat, per topik.', 'What to remember, topic by topic.')}</h1>
         <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-slate-400">
-          {t('Tiap butir: gagasan intinya dulu, rumusnya, lalu satu hal yang harus diingat. Urutannya mengikuti SAP kuliah; tautan "coba" membuka laboratorium yang sesuai.',
-             'Each item: the idea first, then the formulas, then the one thing to remember. The order follows the course plans; the "try" links open the matching lab.')}
+          {t('Disarikan dari buku kuliah (Brown & Churchill, Vaisman, Herstein) dengan nomor pasal dan teorema. Tiap butir: mengapa konsep itu ada, rumusnya, satu hal untuk diingat, dan jebakan yang sering muncul. Tautan "coba" membuka laboratorium yang sesuai.',
+             'Distilled from the course textbooks (Brown & Churchill, Vaisman, Herstein) with section and theorem numbers. Each item: why the concept exists, the formulas, one thing to remember, and the usual trap. The "try" links open the matching lab.')}
         </p>
       </div>
 
@@ -66,6 +66,11 @@ export function Summary({ section }: { section?: string }) {
                     <p className="mt-3 flex items-start gap-2 text-[13px] leading-relaxed text-slate-300">
                       <Lightbulb size={14} className="mt-0.5 shrink-0 text-accent" /><span>{e.insight[lang]}</span>
                     </p>
+                    {e.pitfall && (
+                      <p className="mt-2 flex items-start gap-2 text-[13px] leading-relaxed text-slate-400">
+                        <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-300" /><span>{e.pitfall[lang]}</span>
+                      </p>
+                    )}
                   </article>
                 ))}
               </div>
