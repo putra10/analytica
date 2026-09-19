@@ -8,10 +8,10 @@ export const Panel = ({ children, className }: { children: ReactNode; className?
 
 /** Canvas left, controls right, theory full-width below. */
 export const Layout = ({ canvas, controls, theory }: { canvas: ReactNode; controls: ReactNode; theory: ReactNode }) => (
-  <div className="space-y-4">
+  <div className="min-w-0 space-y-4">
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <Panel>{canvas}</Panel>
-      <div>{controls}</div>
+      <Panel className="min-w-0">{canvas}</Panel>
+      <div className="min-w-0">{controls}</div>
     </div>
     {theory}
   </div>

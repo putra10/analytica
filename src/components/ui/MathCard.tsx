@@ -13,9 +13,9 @@ interface Props {
 
 export function MathCard({ title, icon, number, children, className }: Props) {
   return (
-    <section className={cn('rounded-[var(--radius)] border border-border bg-card p-4 shadow-[var(--shadow-sm)]', className)}>
+    <section className={cn('min-w-0 rounded-[var(--radius)] border border-border bg-card p-4 shadow-[var(--shadow-sm)]', className)}>
       {title && (
-        <h3 className="mb-3 flex items-center gap-2 text-[13px] font-semibold tracking-tight text-slate-100">
+        <h3 className="mb-3 flex min-w-0 flex-wrap items-center gap-2 text-[13px] font-semibold tracking-tight text-slate-100">
           {number && <span className="section-number">{number}</span>}
           {icon && <span className="text-accent">{icon}</span>}
           {title}
@@ -52,8 +52,8 @@ export function Chip({
 /** Labelled row with a toggle switch. */
 export function Toggle({ label, checked, onChange, disabled }: { label: ReactNode; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <label className={cn('flex cursor-pointer items-center justify-between gap-3 text-xs text-slate-300', disabled && 'pointer-events-none opacity-40')}>
-      <span>{label}</span>
+    <label className={cn('flex min-w-0 cursor-pointer items-center justify-between gap-3 text-xs text-slate-300', disabled && 'pointer-events-none opacity-40')}>
+      <span className="min-w-0">{label}</span>
       <Switch.Root
         checked={checked}
         onCheckedChange={onChange}

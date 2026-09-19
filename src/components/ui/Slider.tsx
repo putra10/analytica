@@ -22,9 +22,9 @@ export function Slider({
 }: Props) {
   return (
     <div className={cn('space-y-1.5', disabled && 'pointer-events-none opacity-40')}>
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-300">{label}</span>
-        <span className="flex items-center gap-1.5 font-mono text-slate-400">
+      <div className="flex min-w-0 items-center justify-between gap-2 text-xs">
+        <span className="min-w-0 text-slate-300">{label}</span>
+        <span className="flex shrink-0 items-center gap-1.5 font-mono text-slate-400">
           {format(value)}
           {defaultValue !== undefined && (
             <button
