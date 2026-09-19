@@ -184,3 +184,14 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
 
 /* KaTeX picks up the theme */
 .katex { font-size: 1.04em; color: inherit; }
+
+/* Display math is often wider than a card on a phone, so its wrapper scrolls
+   sideways. `safe center` keeps a formula that fits centred but pins a longer
+   one to the left edge, so its start is never clipped out of reach (plain
+   `center` would push the left half outside the scrollable area). */
+.tex-scroll {
+  display: flex;
+  justify-content: center;
+  justify-content: safe center;
+}
+.tex-scroll > .katex-display { flex: none; }

@@ -15,7 +15,7 @@ export function Tex({ tex, block = false, className }: Props) {
     [tex, block],
   )
   return block ? (
-    <div className={cn('overflow-x-auto py-1 text-slate-100', className)} dangerouslySetInnerHTML={{ __html: html }} />
+    <div className={cn('tex-scroll min-w-0 max-w-full overflow-x-auto overscroll-x-contain py-1 text-slate-100', className)} dangerouslySetInnerHTML={{ __html: html }} />
   ) : (
     <span className={cn('text-slate-100', className)} dangerouslySetInnerHTML={{ __html: html }} />
   )
