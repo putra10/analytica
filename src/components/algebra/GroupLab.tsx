@@ -9,13 +9,8 @@ import { cn } from '../../lib/utils'
 import { Layout } from '../ui/Layout'
 import { MathCard, Chip, TextField, Toggle } from '../ui/MathCard'
 import { Tex, FormulaBlock } from '../ui/FormulaBlock'
+import { CosetCollapse, HUES, labelTex } from './CosetCollapse'
 
-const HUES = (n: number, i: number) => `hsl(${(i * 360) / n} 70% 55%)`
-/** Unicode element labels → TeX (subscripts, superscripts, minus, spaces inside cycles). */
-export const labelTex = (s: string) =>
-  s.replace(/([₀-₉]+)/g, (m) => `_{${[...m].map((c) => '₀₁₂₃₄₅₆₇₈₉'.indexOf(c)).join('')}}`)
-    .replace(/([⁰-⁹]+)/g, (m) => `^{${[...m].map((c) => '⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c)).join('')}}`)
-    .replace(/−/g, '-').replace(/ /g, '\\,')
 const setTex = (g: Group, elems: number[]) => `\\{${elems.map((i) => labelTex(g.labels[i])).join(',\\ ')}\\}`
 
 /** Coloured Cayley table; cells coloured by element, or by coset of H when given. */
@@ -137,6 +132,8 @@ export function GroupLab() {
       }
       theory={
         <div className="grid gap-4 lg:grid-cols-3">
+          <CosetCollapse g={g} H={H} cs={cs} side={side} normal={normal} />
+
           <MathCard title={t('Koset, Lagrange, subgrup normal', 'Cosets, Lagrange, normal subgroups')} icon={<Layers size={16} />}>
             {H ? (
               <div className="space-y-1">
