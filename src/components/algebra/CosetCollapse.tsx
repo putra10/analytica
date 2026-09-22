@@ -1,18 +1,10 @@
-import { ArrowDown, ArrowRight, Combine } from 'lucide-react'
+import { Combine } from 'lucide-react'
 import type { Group } from '../../lib/group-theory'
 import { useT } from '../../lib/i18n'
 import { cn } from '../../lib/utils'
 import { MathCard } from '../ui/MathCard'
 import { Tex } from '../ui/FormulaBlock'
-
-export const HUES = (n: number, i: number) => `hsl(${(i * 360) / n} 70% 55%)`
-const TINT = (n: number, i: number) => `hsl(${(i * 360) / n} 70% 55% / 0.14)`
-
-/** Unicode element labels → TeX (subscripts, superscripts, minus, spaces inside cycles). */
-export const labelTex = (s: string) =>
-  s.replace(/([₀-₉]+)/g, (m) => `_{${[...m].map((c) => '₀₁₂₃₄₅₆₇₈₉'.indexOf(c)).join('')}}`)
-    .replace(/([⁰-⁹]+)/g, (m) => `^{${[...m].map((c) => '⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c)).join('')}}`)
-    .replace(/−/g, '-').replace(/ /g, '\\,')
+import { CollapseDiagram, HUES, TINT, labelTex, type Block, type Target } from './CollapseDiagram'
 
 /** Blocks are wide enough to read; past this many cosets we show a prefix and say so. */
 const MAX_BLOCKS = 12
@@ -46,6 +38,13 @@ export function CosetCollapse({ g, H, cs, side, normal }: Props) {
   const name = (rep: number) =>
     rep === g.e ? S : side === 'right' ? `${S}${labelTex(g.labels[rep])}` : `${labelTex(g.labels[rep])}${S}`
   const shown = cs.slice(0, MAX_BLOCKS)
+  const blocks: Block[] = shown.map((c, i) => ({
+    key: c.rep, tex: name(c.rep), elems: c.elems.map((x) => g.labels[x]),
+    hue: HUES(cs.length, i), tint: TINT(cs.length, i),
+  }))
+  const targets: Target[] = shown.map((c, i) => ({
+    key: c.rep, tex: name(c.rep), hue: HUES(cs.length, i), tint: TINT(cs.length, i),
+  }))
 
   return (
     <MathCard
@@ -58,54 +57,16 @@ export function CosetCollapse({ g, H, cs, side, normal }: Props) {
            <>Every coset — one coloured block on the left — becomes a single point of <Tex tex={`G/${S}`} />. The colours are the ones the Cayley table above is painted with.</>)}
       </p>
 
-      <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-        {/* G: the cosets partition it into [G:H] blocks of equal size (Lagrange). */}
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 text-center text-[11px] text-slate-500"><Tex tex="G" /></div>
-          <div className="flex min-w-0 flex-wrap gap-1 rounded-[var(--radius-sm)] border border-border p-1">
-            {shown.map((c, i) => (
-              <div
-                key={c.rep}
-                className="min-w-0 flex-1 basis-24 rounded-[var(--radius-sm)] border p-1.5"
-                style={{ background: TINT(cs.length, i), borderColor: HUES(cs.length, i) }}
-              >
-                <div className="mb-1 flex min-w-0 items-center justify-center gap-1.5">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: HUES(cs.length, i) }} />
-                  <Tex tex={name(c.rep)} className="text-[11px]" />
-                </div>
-                <div className="flex flex-wrap justify-center gap-x-1.5 gap-y-0.5 font-mono text-[10px] text-slate-400">
-                  {c.elems.map((x) => <span key={x}>{g.labels[x]}</span>)}
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-1 text-center text-[11px] text-slate-500">
-            {cs.length > MAX_BLOCKS
-              ? t(`${MAX_BLOCKS} dari ${cs.length} koset; masing-masing berukuran ${H.length}.`, `${MAX_BLOCKS} of ${cs.length} cosets; each of size ${H.length}.`)
-              : t(`${cs.length} koset, masing-masing berukuran ${H.length} (Lagrange).`, `${cs.length} cosets, each of size ${H.length} (Lagrange).`)}
-          </p>
-        </div>
-
-        {/* the natural map ψ(a) = Ha */}
-        <div className="flex shrink-0 flex-col items-center justify-center gap-0.5 text-slate-500">
-          <Tex tex={`a \\longmapsto ${side === 'right' ? `${S}a` : `a${S}`}`} className="text-[11px]" />
-          <ArrowDown size={18} className="sm:hidden" />
-          <ArrowRight size={18} className="hidden sm:block" />
-        </div>
-
-        {/* G/H: one point per coset */}
-        <div className="min-w-0 shrink-0 sm:w-40">
-          <div className="mb-1 text-center text-[11px] text-slate-500"><Tex tex={`G/${S}`} /></div>
-          <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 rounded-[var(--radius-sm)] border border-border p-2 sm:flex-col sm:flex-nowrap sm:justify-start">
-            {shown.map((c, i) => (
-              <div key={c.rep} className="flex min-w-0 items-center gap-1.5">
-                <span className="h-3.5 w-3.5 shrink-0 rounded-full border" style={{ background: TINT(cs.length, i), borderColor: HUES(cs.length, i) }} />
-                <Tex tex={name(c.rep)} className="text-[11px]" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <CollapseDiagram
+        blocks={blocks}
+        targets={targets}
+        leftTex="G"
+        rightTex={`G/${S}`}
+        mapTex={`a \\longmapsto ${side === 'right' ? `${S}a` : `a${S}`}`}
+        note={cs.length > MAX_BLOCKS
+          ? t(`${MAX_BLOCKS} dari ${cs.length} koset; masing-masing berukuran ${H.length}.`, `${MAX_BLOCKS} of ${cs.length} cosets; each of size ${H.length}.`)
+          : t(`${cs.length} koset, masing-masing berukuran ${H.length} (Lagrange).`, `${cs.length} cosets, each of size ${H.length} (Lagrange).`)}
+      />
 
       <p className={cn('mt-3 text-xs leading-relaxed', normal ? 'text-slate-400' : 'text-rose-300')}>
         {normal

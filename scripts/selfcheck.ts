@@ -24,7 +24,7 @@ assert(reduceQuadric(QUADRIC_PRESETS.find((p) => p.id === 'v343')!.q).type === '
 console.log(process.exitCode ? 'FAILED' : 'all checks passed')
 
 // ---------- algebra ----------
-import { symmetric, dihedral, cyclic, product, quaternion, units, isomorphism, subgroups, isNormal, quotient, isAbelian, elementOrder } from '../src/lib/group-theory'
+import { symmetric, dihedral, cyclic, product, quaternion, units, isomorphism, subgroups, isNormal, quotient, isAbelian, elementOrder, homomorphisms } from '../src/lib/group-theory'
 import { parsePerm, compose, cycleTex, order, isEven } from '../src/lib/permutations'
 import { zpIrreducible, qIrreducible, parsePoly, pDivMod, polyTex, znInfo } from '../src/lib/rings'
 import { analyzeConic, CONIC_PRESETS } from '../src/lib/conics'
@@ -48,6 +48,24 @@ assert(isomorphism(units(8), product(2, 2)).isomorphic, 'U8 ≅ Z2×Z2')
 assert(subgroups(symmetric(4)).length === 30, `S4 subgroups: ${subgroups(symmetric(4)).length}`)
 const S3 = symmetric(3), A3 = subgroups(S3).find((h) => h.length === 3)!
 assert(isNormal(S3, A3) && quotient(S3, A3).order === 2 && isAbelian(quotient(S3, A3)), 'A3 normal in S3')
+
+// Hom counts: S3 → Z2 is trivial + sign; Hom(D4,Z2) = 4; End(S4) = 58
+assert(homomorphisms(S3, cyclic(2)).length === 2, `|Hom(S3,Z2)| = ${homomorphisms(S3, cyclic(2)).length}`)
+assert(homomorphisms(dihedral(4), cyclic(2)).length === 4, `|Hom(D4,Z2)| = ${homomorphisms(dihedral(4), cyclic(2)).length}`)
+assert(homomorphisms(symmetric(4), symmetric(4)).length === 58, `|End(S4)| = ${homomorphisms(symmetric(4), symmetric(4)).length}`)
+// the sign map has kernel A3
+assert(homomorphisms(S3, cyclic(2)).some((f) => f.kernel.join() === A3.join()), 'ker(sign) = A3')
+// every kernel is normal (2.5.5) and |G| = |ker φ|·|φ(G)| with G/ker φ ≅ φ(G) (2.7.1)
+for (const G of [S3, dihedral(4), quaternion(), symmetric(4), cyclic(12)]) {
+  for (const H of [cyclic(2), cyclic(4), S3, dihedral(4)]) {
+    for (const f of homomorphisms(G, H)) {
+      assert(isNormal(G, f.kernel), `ker φ normal in ${G.name} → ${H.name}`)
+      assert(f.kernel.length * f.image.length === G.order, `|G| = |ker|·|im| for ${G.name} → ${H.name}`)
+      const Q = quotient(G, f.kernel)
+      assert(Q.order === f.image.length, `|G/ker φ| = |φ(G)| for ${G.name} → ${H.name}`)
+    }
+  }
+}
 assert(!isNormal(S3, subgroups(S3).find((h) => h.length === 2)!), 'order-2 subgroup of S3 not normal')
 assert(quaternion().table.every((row, a) => row.every((_, b) => elementOrder(quaternion(), a) <= 4)) && subgroups(quaternion()).every((h) => isNormal(quaternion(), h)), 'Q8: all subgroups normal')
 

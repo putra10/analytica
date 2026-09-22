@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Grid3x3, Layers, Shuffle } from 'lucide-react'
 import {
-  GROUP_CATALOG, center, cosets, cyclicHom, elementOrder, generators, isAbelian, isCyclic, isNormal, isomorphism, mul,
+  GROUP_CATALOG, center, cosets, generators, isAbelian, isCyclic, isNormal, isomorphism, mul,
   orderProfile, permutationGroupFrom, quotient, range, subgroups, type Group,
 } from '../../lib/group-theory'
 import { useLang, useT } from '../../lib/i18n'
@@ -9,7 +9,9 @@ import { cn } from '../../lib/utils'
 import { Layout } from '../ui/Layout'
 import { MathCard, Chip, TextField, Toggle } from '../ui/MathCard'
 import { Tex, FormulaBlock } from '../ui/FormulaBlock'
-import { CosetCollapse, HUES, labelTex } from './CosetCollapse'
+import { CosetCollapse } from './CosetCollapse'
+import { KernelLab } from './KernelLab'
+import { HUES, labelTex } from './CollapseDiagram'
 
 const setTex = (g: Group, elems: number[]) => `\\{${elems.map((i) => labelTex(g.labels[i])).join(',\\ ')}\\}`
 
@@ -59,14 +61,19 @@ export function GroupLab() {
   const [hid, setHid] = useState('D3')
   const [subIdx, setSubIdx] = useState<number | null>(null)
   const [side, setSide] = useState<'left' | 'right'>('right')
-  const [homImg, setHomImg] = useState(0)
   const [customText, setCustomText] = useState('(1 2 3 4), (1 3)')
   const customGroup = useMemo(() => {
     try { return { ok: true as const, g: permutationGroupFrom(customText) } } catch (e) { return { ok: false as const, error: (e as Error).message } }
   }, [customText])
 
-  const g = useMemo(() => (gid === 'custom' && customGroup.ok ? customGroup.g : GROUP_CATALOG.find((c) => c.id === gid)!.make()), [gid, customGroup])
-  const h = useMemo(() => (hid === 'custom' && customGroup.ok ? customGroup.g : GROUP_CATALOG.find((c) => c.id === hid)!.make()), [hid, customGroup])
+  // while the custom generators are being typed they are often unparseable; fall back to a catalog
+  // group rather than indexing past the end of it (the field shows why below)
+  const resolve = useCallback(
+    (id: string) => (id === 'custom' && customGroup.ok ? customGroup.g : (GROUP_CATALOG.find((c) => c.id === id) ?? GROUP_CATALOG[0]).make()),
+    [customGroup],
+  )
+  const g = useMemo(() => resolve(gid), [gid, resolve])
+  const h = useMemo(() => resolve(hid), [hid, resolve])
   const subs = useMemo(() => subgroups(g), [g])
   const H = subIdx !== null ? subs[subIdx] : undefined
   const normal = H ? isNormal(g, H) : false
@@ -77,7 +84,6 @@ export function GroupLab() {
   const gens = cyc ? generators(g) : []
   const Z = center(g)
   const iso = useMemo(() => isomorphism(g, h), [g, h])
-  const hom = cyc ? cyclicHom(g, gens[0], h, homImg) : null
 
   const pick = (id: string) => { setGid(id); setSubIdx(null) }
   const H_CATALOG = [...GROUP_CATALOG.map((c) => ({ id: c.id, name: c.make().name })), ...(customGroup.ok ? [{ id: 'custom', name: customGroup.g.name }] : [])]
@@ -133,6 +139,8 @@ export function GroupLab() {
       theory={
         <div className="grid gap-4 lg:grid-cols-3">
           <CosetCollapse g={g} H={H} cs={cs} side={side} normal={normal} />
+
+          <KernelLab g={g} h={h} />
 
           <MathCard title={t('Koset, Lagrange, subgrup normal', 'Cosets, Lagrange, normal subgroups')} icon={<Layers size={16} />}>
             {H ? (
@@ -193,7 +201,7 @@ export function GroupLab() {
           <MathCard title={t('Isomorfisma & homomorfisma', 'Isomorphism & homomorphism')} icon={<Shuffle size={16} />}>
             <p className="mb-1 text-[11px] text-slate-500">{t('Grup pembanding H:', 'Comparison group H:')}</p>
             <div className="flex flex-wrap gap-1">
-              {H_CATALOG.map((c) => <Chip key={c.id} active={c.id === hid} onClick={() => { setHid(c.id); setHomImg(0) }} className="px-1.5 py-0.5 text-[10px]">{c.name}</Chip>)}
+              {H_CATALOG.map((c) => <Chip key={c.id} active={c.id === hid} onClick={() => setHid(c.id)} className="px-1.5 py-0.5 text-[10px]">{c.name}</Chip>)}
             </div>
             <p className="mt-2 text-sm">
               <Tex tex={`${g.tex} ${iso.isomorphic ? '\\cong' : '\\not\\cong'} ${h.tex}`} />
@@ -205,26 +213,6 @@ export function GroupLab() {
                 {iso.isomorphic && iso.map && <> {t('via', 'via')} <Tex tex={`${g.labels[1] ?? ''} \\mapsto ${labelTex(h.labels[iso.map[1]] ?? '')}`} /></>}
               </span>
             </p>
-            {cyc && (
-              <div className="mt-2 border-t border-border pt-2">
-                <p className="text-[11px] text-slate-500">{t(<>Homomorfisma <Tex tex={`\\varphi: ${g.tex} \\to ${h.tex}`} /> ditentukan oleh bayangan pembangkit; pilih <Tex tex={`\\varphi(${labelTex(g.labels[gens[0]])})`} />:</>, <>A homomorphism <Tex tex={`\\varphi: ${g.tex} \\to ${h.tex}`} /> is fixed by the image of the generator; choose <Tex tex={`\\varphi(${labelTex(g.labels[gens[0]])})`} />:</>)}</p>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {range(h.order).map((y) => {
-                    const ok = g.order % elementOrder(h, y) === 0
-                    return <Chip key={y} active={homImg === y} disabled={!ok} onClick={() => setHomImg(y)} className="px-1.5 py-0.5 text-[10px]">{h.labels[y]}</Chip>
-                  })}
-                </div>
-                {hom ? (
-                  <div className="mt-1 space-y-0.5">
-                    <FormulaBlock tex={`\\ker\\varphi = ${setTex(g, hom.kernel)},\\quad \\varphi(G) = ${setTex(h, hom.image)}`} />
-                    <FormulaBlock tex={`G/\\ker\\varphi \\cong \\varphi(G),\\quad ${g.order}/${hom.kernel.length} = ${hom.image.length}`} />
-                    <p className="text-xs text-slate-400">{t('Teorema homomorfisma pertama (2.7.1): ker φ normal dan G/ker φ ≅ φ(G).', 'First homomorphism theorem (2.7.1): ker φ is normal and G/ker φ ≅ φ(G).')}</p>
-                  </div>
-                ) : (
-                  <p className="text-xs text-rose-300">{t('Syarat: orde bayangan harus membagi orde pembangkit.', 'Condition: the order of the image must divide the order of the generator.')}</p>
-                )}
-              </div>
-            )}
             <p className="mt-2 text-xs leading-relaxed text-slate-400">
               {t(<>Invarian isomorfisma: orde, keabelan, banyaknya unsur tiap orde. Bila semuanya cocok, program mencari bijeksi <Tex tex="\varphi" /> dengan <Tex tex="\varphi(ab) = \varphi(a)\varphi(b)" /> dari bayangan pembangkit.</>,
                  <>Isomorphism invariants: order, commutativity, number of elements of each order. When they all agree, the program searches for a bijection <Tex tex="\varphi" /> with <Tex tex="\varphi(ab) = \varphi(a)\varphi(b)" /> from generator images.</>)}
