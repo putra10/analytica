@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { ArrowRight, BookOpen, Map as MapIcon, Shapes } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { ArrowRight, BookOpen, Map as MapIcon, Minus, Plus, RotateCcw, Shapes } from 'lucide-react'
 import { C, PRESETS, type Complex } from '../../lib/complex-math'
 import { compileComplex } from '../../lib/expr'
 import { useLang, useT } from '../../lib/i18n'
@@ -61,6 +61,8 @@ const REGIONS: { id: Region; label: { id: string; en: string } }[] = [
 ]
 
 interface Curve { pts: Complex[]; color: string; width: number; fill?: boolean }
+type PlaneView = { unit: number; center: [number, number] }
+type RegionDrag = { target: 'x0' | 'x1' | 'y0' | 'y1' | 'tl' | 'tr' | 'bl' | 'br' | 'move'; start: [number, number]; bounds: [number, number, number, number] }
 
 /** Sample the curve families of a region; bounds = [a, b, c, d] with meaning per region. */
 function curves(region: Region, [a, b, c, d]: [number, number, number, number], accent: string, violet: string, n = 9): Curve[] {
@@ -143,6 +145,9 @@ export function MappingLab() {
   const [bounds, setBounds] = useState<[number, number, number, number]>([0.2, 2, 0.2, 2])
   const [density, setDensity] = useState(9)
   const [probe, setProbe] = useState<Complex | null>(null)
+  const [zView, setZView] = useState<PlaneView>({ unit: 70, center: [0, 0] })
+  const [wView, setWView] = useState<PlaneView>({ unit: 70, center: [0, 0] })
+  const regionDrag = useRef<RegionDrag | null>(null)
 
   const compiled = useMemo(() => { try { return { ok: true as const, ...compileComplex(customText) } } catch (e) { return { ok: false as const, error: (e as Error).message } } }, [customText])
   const preset = MAP_PRESETS.find((p) => p.id === presetId)
@@ -164,17 +169,102 @@ export function MappingLab() {
   }
   const ranges: [number, number][] = region === 'polar' || region === 'sector' ? [[0, 3], [0, 3], [-Math.PI, 2 * Math.PI], [-Math.PI, 2 * Math.PI]] : region === 'disk' ? [[-3, 3], [-3, 3], [0.1, 3], [0, 0]] : [[-3, 3], [-3, 3], [-3, 3], [-3, 3]]
 
-  const plane = (label: string, axes: [string, string], mapFn?: Fn) => (
-    <div className="relative h-[300px] rounded-[var(--radius)] border border-border bg-card sm:h-[420px]">
+  const plane = (label: string, axes: [string, string], mapFn?: Fn) => {
+    const isZ = !mapFn
+    const viewState = isZ ? zView : wView
+    const setViewState = isZ ? setZView : setWView
+    const zoom = (factor: number) => setViewState((view) => {
+      const unit = Math.max(24, Math.min(240, view.unit * factor))
+      return { ...view, unit }
+    })
+    const handleRegionPointer = (p: [number, number], phase: 'down' | 'move' | 'up') => {
+      if (!isZ || !['cartesian', 'rectangle', 'halfstrip'].includes(region)) return
+      const [a, b, c, d] = bounds
+      if (phase === 'down') {
+        const tolerance = 10 / zView.unit
+        const nearX = p[1] >= c - tolerance && p[1] <= d + tolerance
+        const nearY = p[0] >= a - tolerance && p[0] <= b + tolerance
+        let target: RegionDrag['target'] | null = null
+        const left = Math.abs(p[0] - a) < tolerance, right = Math.abs(p[0] - b) < tolerance
+        const bottom = Math.abs(p[1] - c) < tolerance, top = Math.abs(p[1] - d) < tolerance
+        if (left && bottom) target = 'bl'
+        else if (left && top) target = 'tl'
+        else if (right && bottom) target = 'br'
+        else if (right && top) target = 'tr'
+        else if (nearX && left) target = 'x0'
+        else if (nearX && right) target = 'x1'
+        else if (nearY && bottom) target = 'y0'
+        else if (nearY && top) target = 'y1'
+        else if (p[0] > a && p[0] < b && p[1] > c && p[1] < d) target = 'move'
+        if (target) {
+          regionDrag.current = { target, start: p, bounds }
+          return
+        }
+      }
+      if (phase === 'move' && regionDrag.current) {
+        const drag = regionDrag.current
+        let dx = p[0] - drag.start[0], dy = p[1] - drag.start[1]
+        const next = [...drag.bounds] as typeof bounds
+        const clamp = (value: number) => Math.max(-3, Math.min(3, value))
+        if (drag.target === 'move') {
+          dx = Math.max(-3 - drag.bounds[0], Math.min(3 - drag.bounds[1], dx))
+          dy = Math.max(-3 - drag.bounds[2], Math.min(3 - drag.bounds[3], dy))
+          next[0] += dx; next[1] += dx; next[2] += dy; next[3] += dy
+        }
+        if (drag.target === 'x0') next[0] = clamp(Math.min(drag.bounds[1] - 0.05, drag.bounds[0] + dx))
+        if (drag.target === 'x1') next[1] = clamp(Math.max(drag.bounds[0] + 0.05, drag.bounds[1] + dx))
+        if (drag.target === 'y0') next[2] = clamp(Math.min(drag.bounds[3] - 0.05, drag.bounds[2] + dy))
+        if (drag.target === 'y1') next[3] = clamp(Math.max(drag.bounds[2] + 0.05, drag.bounds[3] + dy))
+        if (drag.target === 'tl' || drag.target === 'bl') next[0] = clamp(Math.min(drag.bounds[1] - 0.05, drag.bounds[0] + dx))
+        if (drag.target === 'tr' || drag.target === 'br') next[1] = clamp(Math.max(drag.bounds[0] + 0.05, drag.bounds[1] + dx))
+        if (drag.target === 'bl' || drag.target === 'br') next[2] = clamp(Math.min(drag.bounds[3] - 0.05, drag.bounds[2] + dy))
+        if (drag.target === 'tl' || drag.target === 'tr') next[3] = clamp(Math.max(drag.bounds[2] + 0.05, drag.bounds[3] + dy))
+        setBounds(next)
+        return
+      }
+      if (phase === 'up') regionDrag.current = null
+    }
+    const wheelZoom = (e: React.WheelEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      const rect = e.currentTarget.getBoundingClientRect()
+      setViewState((view) => {
+        const unit = Math.max(24, Math.min(240, view.unit * Math.exp(-e.deltaY * 0.001)))
+        const px = e.clientX - rect.left - rect.width / 2, py = e.clientY - rect.top - rect.height / 2
+        return { unit, center: [view.center[0] + px / view.unit - px / unit, view.center[1] - py / view.unit + py / unit] }
+      })
+    }
+    return (
+    <div className="relative h-[300px] rounded-[var(--radius)] border border-border bg-card sm:h-[420px]" onWheel={wheelZoom}>
       <Canvas2D
-        unit={70}
-        draw={(ctx, v) => { drawPlane(ctx, v, label, axes); drawCurves(ctx, v, cs, mapFn); const p = mapFn ? wProbe : probe; if (p && Number.isFinite(p.re) && Number.isFinite(p.im)) { const [x, y] = v.P([p.re, p.im]); ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fillStyle = css('--fg'); ctx.fill() } }}
-        deps={[cs, mapFn, probe, wProbe]}
-        onPointer={(w, phase) => { if (!mapFn && (phase === 'move' || phase === 'down')) setProbe(C(w[0], w[1])) }}
+        unit={viewState.unit}
+        center={viewState.center}
+        draw={(ctx, v) => {
+          drawPlane(ctx, v, label, axes)
+          drawCurves(ctx, v, cs, mapFn)
+          if (isZ && ['cartesian', 'rectangle', 'halfstrip'].includes(region)) {
+            const [a, b, c, d] = bounds, tl = v.P([a, d]), br = v.P([b, c])
+            ctx.save(); ctx.fillStyle = css('--accent'); ctx.globalAlpha = 0.06; ctx.fillRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1]); ctx.globalAlpha = 0.8; ctx.strokeStyle = css('--accent'); ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]); ctx.strokeRect(tl[0], tl[1], br[0] - tl[0], br[1] - tl[1]); ctx.setLineDash([])
+            for (const p of [[a, c], [a, d], [b, c], [b, d]] as [number, number][]) { const [x, y] = v.P(p); ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fillStyle = css('--surface'); ctx.fill(); ctx.strokeStyle = css('--accent'); ctx.lineWidth = 1.5; ctx.stroke() }
+            ctx.restore()
+          }
+          const p = mapFn ? wProbe : probe
+          if (p && Number.isFinite(p.re) && Number.isFinite(p.im)) { const [x, y] = v.P([p.re, p.im]); ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fillStyle = css('--fg'); ctx.fill() }
+        }}
+        deps={[cs, mapFn, probe, wProbe, region, bounds, viewState]}
+        onPointer={(w, phase) => {
+          handleRegionPointer(w, phase)
+          if (isZ && !regionDrag.current && (phase === 'move' || phase === 'down')) setProbe(C(w[0], w[1]))
+        }}
         className="h-full w-full touch-none rounded-[var(--radius)]"
       />
+      <div className="absolute right-2 top-2 flex items-center gap-1 rounded-lg border border-border bg-card/95 p-1 shadow-sm" aria-label={t('Kontrol zoom', 'Zoom controls')}>
+        <button type="button" aria-label={t('Perbesar', 'Zoom in')} onClick={() => zoom(1.25)} className="rounded p-1.5 text-slate-300 hover:bg-slate-800 hover:text-slate-100"><Plus size={14} /></button>
+        <button type="button" aria-label={t('Perkecil', 'Zoom out')} onClick={() => zoom(0.8)} className="rounded p-1.5 text-slate-300 hover:bg-slate-800 hover:text-slate-100"><Minus size={14} /></button>
+        <button type="button" aria-label={t('Reset zoom', 'Reset zoom')} onClick={() => setViewState({ unit: 70, center: [0, 0] })} className="rounded p-1.5 text-slate-300 hover:bg-slate-800 hover:text-slate-100"><RotateCcw size={13} /></button>
+      </div>
     </div>
-  )
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -206,7 +296,9 @@ export function MappingLab() {
               ))}
               <Slider label={t('Kerapatan kurva', 'Curve density')} value={density} min={3} max={17} step={2} onChange={setDensity} format={(v) => String(v)} />
             </div>
-            <p className="mt-2 text-[11px] text-slate-500">{t('Gerakkan kursor di bidang z untuk melihat bayangan titiknya di bidang w.', 'Move the cursor over the z-plane to see the image of the point in the w-plane.')}</p>
+            <p className="mt-2 text-[11px] text-slate-500">{['cartesian', 'rectangle', 'halfstrip'].includes(region)
+              ? t('Seret bagian dalam daerah untuk memindahkannya, atau seret tepi/titik sudut untuk mengubah ukurannya. Gulir untuk zoom; titik uji mengikuti kursor.', 'Drag inside the region to move it, or drag an edge/corner to resize it. Scroll to zoom; the probe follows the cursor.')
+              : t('Atur daerah dengan penggeser. Gulir untuk zoom; titik uji mengikuti kursor.', 'Adjust this region with the sliders. Scroll to zoom; the probe follows the cursor.')}</p>
           </MathCard>
         </div>
       </div>
