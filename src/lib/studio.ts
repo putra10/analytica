@@ -7,7 +7,9 @@ export type Shape =
   | { kind: 'line' | 'segment'; p: V; v: V }
   | { kind: 'circle' | 'sphere'; p: V; r: number }
   | { kind: 'plane'; n: V; D: number }
-  | { kind: 'curve' | 'surface'; f: (x: number, y: number) => number }
+  | { kind: 'curve'; axis: 'x' | 'y'; f: (x: number, y: number) => number }
+  | { kind: 'implicit'; f: (x: number, y: number) => number }
+  | { kind: 'surface'; f: (x: number, y: number) => number }
   | { kind: 'value'; value: number | string }
 export interface Entry { id: string; text: string; visible: boolean }
 export interface Result { entry: Entry; name: string; shape?: Shape; error?: string }
@@ -53,13 +55,58 @@ export function calculate(entries: Entry[]): Result[] {
       if (!src) throw Error('Enter an expression')
       if (src.length > 500) throw Error('Keep expressions below 500 characters')
       const assignment = src.match(/^([A-Za-z][A-Za-z0-9_]*)\s*=\s*(.+)$/)
-      if (assignment && !['y', 'z'].includes(assignment[1])) { name = assignment[1]; src = assignment[2]; if (objects[name]) throw Error('Name already used') }
+      const graphAxis = assignment?.[1].toLowerCase()
+      if (assignment) {
+        name = assignment[1]
+        if (['x', 'y', 'z'].includes(graphAxis!)) src = `${graphAxis} = ${assignment[2]}`
+        else src = assignment[2]
+        if (objects[name]) throw Error('Name already used')
+      }
       let shape: Shape
-      if (/^[yz]\s*=/.test(src)) {
-        const kind = src[0] === 'y' ? 'curve' : 'surface', ast = parse(src.slice(src.indexOf('=') + 1))
+      if (/^[xyz]\s*=/.test(src)) {
+        const axis = src[0] as 'x' | 'y' | 'z'
+        const kind = axis === 'z' ? 'surface' : 'curve', ast = parse(src.slice(src.indexOf('=') + 1))
         validate(ast)
-        for (const v of freeVars(ast)) if (!['x', ...(kind === 'surface' ? ['y'] : []), 'pi', 'e', ...Object.keys(numbers)].includes(v)) throw Error(`Unknown variable: ${v}`)
-        const env = { ...numbers }; shape = { kind, f: (x, y) => real(ast, { ...env, x, y }) }
+        const independent = axis === 'x' ? 'y' : 'x'
+        for (const v of freeVars(ast)) if (![independent, ...(kind === 'surface' ? ['y'] : []), 'pi', 'e', ...Object.keys(numbers)].includes(v)) throw Error(`Unknown variable: ${v}`)
+        const env = { ...numbers }
+        shape = kind === 'curve'
+          ? { kind, axis: axis as 'x' | 'y', f: (x, y) => real(ast, { ...env, x, y }) }
+          : { kind, f: (x, y) => real(ast, { ...env, x, y }) }
+      } else if (src.includes('=')) {
+        const sides = src.split('=')
+        if (sides.length !== 2) throw Error('Use one equals sign in a line equation')
+        const lhs = parse(sides[0]), rhs = parse(sides[1])
+        validate(lhs); validate(rhs)
+        const allowed = ['x', 'y', 'z', 'pi', 'e', ...Object.keys(numbers)]
+        for (const v of [...freeVars(lhs), ...freeVars(rhs)]) if (!allowed.includes(v)) throw Error('Unknown variable: ' + v)
+        const env = { ...numbers }
+        const at = (x: number, y: number, z = 0) => real(lhs, { ...env, x, y, z }) - real(rhs, { ...env, x, y, z })
+        const d = at(0, 0, 0), a = at(1, 0, 0) - d, b = at(0, 1, 0) - d, c = at(0, 0, 1) - d
+        const samples: [number, number, number][] = [[-2, 1, 0], [1, -3, 0], [2, 3, 0], [-3, -2, 0], [1, 1, 2], [-2, 3, -1], [2, -1, 3]]
+        const values = samples.map(([x, y, z]) => at(x, y, z))
+        const linear = [a, b, c, d].every(Number.isFinite) && Math.hypot(a, b, c) >= 1e-10 && values.every(Number.isFinite) && samples.every(([x, y, z], i) => Math.abs(values[i] - (a * x + b * y + c * z + d)) <= 1e-8 * (1 + Math.abs(values[i])))
+        if (linear) {
+          if (Math.abs(c) > 1e-10) shape = { kind: 'plane', n: [a, b, c], D: d }
+          else {
+            const length2 = a * a + b * b
+            if (length2 < 1e-20) throw Error('Equation does not define a line or plane')
+            shape = { kind: 'line', p: [-a * d / length2, -b * d / length2, 0], v: [b, -a, 0] }
+          }
+        } else {
+          const vars = [...freeVars(lhs), ...freeVars(rhs)]
+          if (vars.includes('z')) throw Error('Use z = f(x,y) for a 3D surface; implicit 3D surfaces are not supported')
+          if (!vars.some(v => v === 'x' || v === 'y')) throw Error('Equation does not define a 2D curve')
+          const q0 = at(0, 0), xp = at(1, 0), xn = at(-1, 0), yp = at(0, 1), yn = at(0, -1)
+          const qx = (xp + xn - 2 * q0) / 2, qy = (yp + yn - 2 * q0) / 2
+          const lx = (xp - xn) / 2, ly = (yp - yn) / 2, qxy = at(1, 1) - qx - qy - lx - ly - q0
+          const circleSamples: [number, number][] = [[2, 1], [-1, 2], [-2, -3], [3, -1]]
+          const circleModel = (x: number, y: number) => qx * x * x + qy * y * y + qxy * x * y + lx * x + ly * y + q0
+          const isCircle = [q0, qx, qy, lx, ly, qxy].every(Number.isFinite) && Math.abs(qx) > 1e-10 && Math.abs(qx - qy) <= 1e-8 * (1 + Math.abs(qx)) && Math.abs(qxy) <= 1e-8 * (1 + Math.abs(qx)) && circleSamples.every(([x, y]) => Math.abs(at(x, y) - circleModel(x, y)) <= 1e-8 * (1 + Math.abs(at(x, y))))
+          const radius2 = (lx * lx + ly * ly) / (4 * qx * qx) - q0 / qx
+          if (isCircle && Number.isFinite(radius2) && radius2 > 0) shape = { kind: 'circle', p: [-lx / (2 * qx), -ly / (2 * qx), 0], r: Math.sqrt(radius2) }
+          else shape = { kind: 'implicit', f: at }
+        }
       } else if (src.startsWith('(') && split(src.slice(1, -1)).length > 1) shape = { kind: 'point', p: point(src) }
       else {
         const call = src.match(/^(point|line|segment|circle|sphere|plane|distance|intersect|angle|area|volume)\((.*)\)$/i)
@@ -110,5 +157,6 @@ export function describe(s: Shape): string {
   if (s.kind === 'plane') return `${s.n.map(fmt).join(', ')} · (x,y,z) + ${fmt(s.D)} = 0`
   if (s.kind === 'segment') return `length = ${fmt(norm(s.v))}`
   if (s.kind === 'line') return `direction = (${s.v.map(fmt).join(', ')})`
-  return s.kind === 'curve' ? 'y = f(x)' : 'z = f(x,y)'
+  if (s.kind === 'implicit') return 'implicit curve'
+  return s.kind === 'curve' ? (s.axis === 'x' ? 'x = f(y)' : 'y = f(x)') : 'z = f(x,y)'
 }

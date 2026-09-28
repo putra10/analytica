@@ -23,7 +23,7 @@ const FUNCS_BY_LENGTH = [...FUNCS].sort((a, b) => b.length - a.length)
 type Tok = { k: 'num'; v: number } | { k: 'id'; v: string } | { k: 'op'; v: string }
 
 function tokenize(src: string): Tok[] {
-  const s = src.replace(/−/g, '-').replace(/·|×/g, '*').replace(/\s+/g, '')
+  const s = src.replace(/−/g, '-').replace(/·|×/g, '*').replace(/²/g, '^2').replace(/³/g, '^3').replace(/\s+/g, '')
   const out: Tok[] = []
   let i = 0
   while (i < s.length) {

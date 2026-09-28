@@ -31,7 +31,7 @@ function Surface({ shape, color }: { shape: Extract<Shape, { kind: 'curve' | 'su
     const paths: V[][] = []
     if (shape.kind === 'curve') {
       let path: V[] = []
-      for (let i = 0; i <= 800; i++) { const x = -20 + i / 20, y = shape.f(x, 0); if (Number.isFinite(y) && Math.abs(y) <= 25 && (!path.length || Math.abs(y - path[path.length - 1][1]) < 5)) path.push([x, y, 0]); else { if (path.length > 1) paths.push(path); path = [] } }
+      for (let i = 0; i <= 800; i++) { const t = -20 + i / 20, x = shape.axis === 'x' ? shape.f(0, t) : t, y = shape.axis === 'x' ? t : shape.f(t, 0); if (Number.isFinite(x) && Number.isFinite(y) && Math.abs(x) <= 25 && Math.abs(y) <= 25 && (!path.length || Math.hypot(x - path[path.length - 1][0], y - path[path.length - 1][1]) < 5)) path.push([x, y, 0]); else { if (path.length > 1) paths.push(path); path = [] } }
       if (path.length > 1) paths.push(path)
       return paths
     }
@@ -43,6 +43,23 @@ function Surface({ shape, color }: { shape: Extract<Shape, { kind: 'curve' | 'su
     return paths
   }, [shape])
   return <>{paths.map((p, i) => <Line key={i} points={p} color={color} lineWidth={1} />)}</>
+}
+function contourPath(f: (x: number, y: number) => number, view: { x: number; y: number; range: number }, width: number, height: number) {
+  const nx = 120, ny = Math.max(48, Math.round(nx * height / width)), unit = width / (2 * view.range), ry = height / (2 * unit)
+  const values = Array.from({ length: ny + 1 }, (_, j) => Array.from({ length: nx + 1 }, (_, i) => f(view.x - view.range + 2 * view.range * i / nx, view.y - ry + 2 * ry * j / ny)))
+  let path = ''
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const corners = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]] as const
+    const crossings: [number, number][] = []
+    for (let e = 0; e < 4; e++) {
+      const [ia, ja] = corners[e], [ib, jb] = corners[(e + 1) % 4], a = values[ja][ia], b = values[jb][ib]
+      if (!Number.isFinite(a) || !Number.isFinite(b) || (a < 0) === (b < 0)) continue
+      const t = a / (a - b), x = (ia + (ib - ia) * t) / nx * 2 * view.range - view.range + view.x, y = (ja + (jb - ja) * t) / ny * 2 * ry - ry + view.y
+      crossings.push([width / 2 + (x - view.x) * unit, height / 2 - (y - view.y) * unit])
+    }
+    for (let k = 0; k + 1 < crossings.length; k += 2) path += `M${crossings[k][0]},${crossings[k][1]}L${crossings[k + 1][0]},${crossings[k + 1][1]} `
+  }
+  return path
 }
 function Scene({ results }: { results: Result[] }) {
   return <Canvas camera={{ position: [11, -14, 11], up: [0, 0, 1], fov: 45 }}>
@@ -69,7 +86,35 @@ function Plot({ results, tool, onPoint, onMove }: { results: Result[]; tool: boo
   const [size, setSize] = useState({ w: 800, h: 560 })
   const ref = useRef<SVGSVGElement>(null)
   const drag = useRef<{ id?: string; x: number; y: number; cx: number; cy: number; z: number } | null>(null)
-  useEffect(() => { const el = ref.current!; const ro = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height })); ro.observe(el); return () => ro.disconnect() }, [])
+  const fitView = () => {
+    const rect = ref.current?.getBoundingClientRect()
+    const w = rect?.width || size.w, h = rect?.height || size.h, aspect = w / h
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+    const include = (x: number, y: number) => { if (Number.isFinite(x) && Number.isFinite(y) && Math.abs(x) < 1e4 && Math.abs(y) < 1e4) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y) } }
+    for (const { shape, entry } of results) {
+      if (!shape || !entry.visible || shape.kind === 'value' || shape.kind === 'plane' || shape.kind === 'sphere' || shape.kind === 'surface') continue
+      if (shape.kind === 'point') include(shape.p[0], shape.p[1])
+      else if (shape.kind === 'circle') { include(shape.p[0] - shape.r, shape.p[1] - shape.r); include(shape.p[0] + shape.r, shape.p[1] + shape.r) }
+      else if (shape.kind === 'segment') { include(shape.p[0], shape.p[1]); include(shape.p[0] + shape.v[0], shape.p[1] + shape.v[1]) }
+      else if (shape.kind === 'line') { const length = norm(shape.v); if (length) { const d = scale(shape.v, 6 / length); include(shape.p[0] - d[0], shape.p[1] - d[1]); include(shape.p[0] + d[0], shape.p[1] + d[1]) } }
+      else if (shape.kind === 'curve') {
+        const half = shape.axis === 'x' ? 8 / aspect : 8
+        for (let i = 0; i <= 240; i++) { const t = -half + 2 * half * i / 240, x = shape.axis === 'x' ? shape.f(0, t) : t, y = shape.axis === 'x' ? t : shape.f(t, 0); include(x, y) }
+      }
+    }
+    if (!Number.isFinite(minX)) { minX = -8; maxX = 8; minY = -8; maxY = 8 }
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
+    const halfX = Math.max(1.5, (maxX - minX) / 2), halfY = Math.max(1.5, (maxY - minY) / 2)
+    setView({ x: cx, y: cy, range: Math.min(100, Math.max(0.25, Math.max(halfX, halfY * aspect) * 1.12)) })
+  }
+  useEffect(() => {
+    const el = ref.current!, ro = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }))
+    ro.observe(el)
+    fitView()
+    return () => ro.disconnect()
+    // The current results are used for the initial fit; reset remounts Plot to fit edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const unit = size.w / (2 * view.range), px = (x: number) => size.w / 2 + (x - view.x) * unit, py = (y: number) => size.h / 2 - (y - view.y) * unit
   const toWorld = (x: number, y: number): V => { const b = ref.current!.getBoundingClientRect(); return [+(view.x + (x - b.left - size.w / 2) / unit).toFixed(3), +(view.y - (y - b.top - size.h / 2) / unit).toFixed(3), 0] }
   const step = 10 ** Math.floor(Math.log10(view.range / 3)), lines = []
@@ -87,7 +132,8 @@ function Plot({ results, tool, onPoint, onMove }: { results: Result[]; tool: boo
       if (s.kind === 'point') return <g key={r.entry.id}><circle data-point={/^\s*(?:\w+\s*=\s*)?\([^()]+\)\s*$/.test(r.entry.text) ? r.entry.id : undefined} cx={px(s.p[0])} cy={py(s.p[1])} r={7} fill={color} stroke="#111827" strokeWidth={2} style={{ cursor: 'grab' }} /><text x={px(s.p[0]) + 12} y={py(s.p[1]) - 10} fill={color} fontSize={13}>{r.name}</text></g>
       if (s.kind === 'circle') return <circle key={r.entry.id} cx={px(s.p[0])} cy={py(s.p[1])} r={s.r * unit} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.045} pointerEvents="none" />
       if (s.kind === 'line' || s.kind === 'segment') { const t = s.kind === 'line' ? 1e4 : 1, a = s.kind === 'line' ? add(s.p, scale(s.v, -t)) : s.p, b = add(s.p, scale(s.v, t)); return <line key={r.entry.id} x1={px(a[0])} y1={py(a[1])} x2={px(b[0])} y2={py(b[1])} stroke={color} strokeWidth={2} pointerEvents="none" /> }
-      if (s.kind === 'curve') { let d = '', previous: number | null = null; for (let k = 0; k <= 800; k++) { const x = view.x - view.range + k / 800 * 2 * view.range, y = s.f(x, 0), sy = py(y); if (!Number.isFinite(y) || Math.abs(sy) > size.h * 8) { previous = null; continue } d += `${previous === null || Math.abs(sy - previous) > size.h ? 'M' : 'L'}${px(x)},${sy} `; previous = sy } return <path key={r.entry.id} d={d} stroke={color} strokeWidth={2} fill="none" pointerEvents="none" /> }
+      if (s.kind === 'curve') { let d = '', previous: number | null = null; const half = s.axis === 'x' ? ry : view.range; for (let k = 0; k <= 800; k++) { const t = (s.axis === 'x' ? view.y - half : view.x - half) + k / 800 * 2 * half, x = s.axis === 'x' ? s.f(0, t) : t, y = s.axis === 'x' ? t : s.f(t, 0), sy = py(y); if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(px(x)) > size.w * 8 || Math.abs(sy) > size.h * 8) { previous = null; continue } d += `${previous === null || Math.abs(sy - previous) > size.h ? 'M' : 'L'}${px(x)},${sy} `; previous = sy } return <path key={r.entry.id} d={d} stroke={color} strokeWidth={2} fill="none" pointerEvents="none" /> }
+      if (s.kind === 'implicit') return <path key={r.entry.id} d={contourPath(s.f, view, size.w, size.h)} stroke={color} strokeWidth={2} fill="none" pointerEvents="none" />
       return null
     })}
     <text x={size.w - 20} y={Math.max(20, Math.min(size.h - 20, py(0) - 10))} fill="#e2e8f0">x</text><text x={Math.max(12, Math.min(size.w - 20, px(0) - 15))} y={20} fill="#e2e8f0">y</text>
@@ -121,14 +167,15 @@ export function GeometryStudio() {
         <div className="studio-row-top"><button className="studio-dot" aria-label={`${r.entry.visible ? 'Hide' : 'Show'} ${r.name}`} aria-pressed={r.entry.visible} style={{ background: r.entry.visible ? colors[i % colors.length] : 'transparent', borderColor: colors[i % colors.length] }} onClick={() => update(r.entry.id, { visible: !r.entry.visible })} /><span>{r.name}</span><button className="studio-delete" aria-label={`Delete ${r.name}`} onClick={() => change(entries.filter(e => e.id !== r.entry.id))}>×</button></div>
         <input aria-label={`Expression ${i + 1}`} value={r.entry.text} maxLength={500} spellCheck={false} onChange={e => update(r.entry.id, { text: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') append('') }} />
         <div className={r.error ? 'studio-error' : 'studio-result'}>{r.error ?? (r.shape && describe(r.shape))}</div>
+        {r.shape?.kind === 'implicit' && mode === '3D' && <small>{t('Persamaan implisit ditampilkan di tampilan 2D', 'Implicit equations are shown in the 2D view')}</small>}
         {r.shape && ['plane', 'sphere', 'surface'].includes(r.shape.kind) && mode === '2D' && <small>{t('Tampilkan di tampilan 3D', 'Visible in the 3D view')}</small>}
       </div>)}</div><button className="studio-add" disabled={entries.length >= 60} onClick={() => append('')}>+ {t('Tambah ekspresi', 'Add expression')}</button>
       <p className="studio-save">{storageError ? t('Penyimpanan tidak tersedia. Ekspor untuk menyimpan.', 'Storage unavailable. Export to keep your work.') : t('Disimpan di browser ini', 'Saved in this browser')}</p>
-    </aside><section className="studio-stage"><div className="studio-stage-top"><span>{mode === '2D' ? 'x · y' : 'x · y · z'} / {t('KOORDINAT', 'COORDINATES')}</span><button onClick={() => setReset(r => r + 1)}>{t('Atur ulang tampilan', 'Reset view')}</button></div>
+    </aside><section className="studio-stage"><div className="studio-stage-top"><span>{mode === '2D' ? 'x · y' : 'x · y · z'} / {t('KOORDINAT', 'COORDINATES')}</span><button onClick={() => setReset(r => r + 1)}>{mode === '2D' ? t('Sesuaikan objek', 'Fit objects') : t('Atur ulang tampilan', 'Reset view')}</button></div>
       <div className="studio-viewport">{mode === '2D' ? <Plot key={reset} results={results} tool={tool} onPoint={addPoint} onMove={(id, p) => { const r = results.find(x => x.entry.id === id)!; if (r.shape?.kind === 'point') { p[2] = r.shape.p[2]; update(id, { text: `${r.name.startsWith('#') ? '' : r.name + ' = '}(${p.join(',')})` }) } }} /> : <SceneBoundary key={reset} fallback={t('WebGL tidak tersedia. Gunakan tampilan 2D; perhitungan tetap aktif.', 'WebGL is unavailable. Use the 2D view; calculations remain available.')}><Scene results={results} /></SceneBoundary>}</div>
       <div className="studio-stage-bottom">{tool ? t('Klik grafik untuk menaruh titik.', 'Click the graph to place a point.') : mode === '2D' ? t('Seret titik • Seret latar untuk geser • Gulir untuk zoom', 'Drag points • Drag background to pan • Scroll to zoom') : t('Seret untuk rotasi • Klik kanan untuk geser • Gulir untuk zoom', 'Drag to orbit • Right-drag to pan • Scroll to zoom')}</div>
     </section></div>
     <div className="studio-help"><div><h2>{t('Mulai dari sebuah ide.', 'Start with an idea.')}</h2><p>{t('Objek dihitung dari atas ke bawah. Gunakan namanya untuk membuat hubungan.', 'Rows calculate from top to bottom. Use object names to build relationships.')}</p><button onClick={() => { change(rows(examples[mode])); setReset(r => r + 1) }}>{t('Muat contoh', 'Load example')} {mode}</button></div><div><code>A = (1,2,3)<br />B = (4,2,0)<br />l = line(A,B)<br />c = circle(A,2)</code></div><div><code>p = plane(1,2,3,-6)<br />distance(A,p)<br />intersect(l,p)<br />angle(l,p)</code></div><div><code>a = 2<br />y = a*sin(x)<br />z = sin(x)*cos(y)<br />sqrt(25) + 2^3</code></div></div>
-    <p className="studio-note">{t('Bidang: ax + by + cz + d = 0. Lingkaran 3D sejajar bidang xy. Tampilan 2D memproyeksikan koordinat x,y; perhitungan memakai ketiga koordinat. Sudut dalam derajat; fungsi trigonometri memakai radian. Irisan mendukung garis–garis, garis–bidang, dan bidang–bidang. Grafik fungsi disampling secara numerik.', 'Planes use ax + by + cz + d = 0. 3D circles lie parallel to the xy plane. The 2D view projects x,y; calculations use all three coordinates. Angles are in degrees; trig inputs use radians. Intersections support line-line, line-plane, and plane-plane. Function graphs are sampled numerically.')}</p>
+    <p className="studio-note">{t('Bidang: ax + by + cz + d = 0. Lingkaran 3D sejajar bidang xy. Tampilan 2D memproyeksikan koordinat x,y; perhitungan memakai ketiga koordinat. Sudut dalam derajat; fungsi trigonometri memakai radian. Irisan mendukung garis–garis, garis–bidang, dan bidang–bidang. Grafik 2D menerima y = f(x), x = f(y), dan F(x,y) = 0; persamaan linear 3D menjadi bidang. Grafik disampling secara numerik.', 'Planes use ax + by + cz + d = 0. 3D circles lie parallel to the xy plane. The 2D view projects x,y; calculations use all three coordinates. Angles are in degrees; trig inputs use radians. Intersections support line-line, line-plane, and plane-plane. 2D graphs accept y = f(x), x = f(y), and F(x,y) = 0; linear 3D equations become planes. Graphs are sampled numerically.')}</p>
   </div>
 }
