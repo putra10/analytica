@@ -9,6 +9,8 @@ import { AlgebraModule } from './components/algebra/AlgebraModule'
 import { Landing } from './pages/Landing'
 import { Summary } from './pages/Summary'
 import { About } from './pages/About'
+import { GeometryStudio } from './pages/GeometryStudio'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 
 const MODULES: Record<TabId, () => React.JSX.Element> = { complex: ComplexModule, geometry: GeometryModule, algebra: AlgebraModule }
 
@@ -56,6 +58,7 @@ function Shell() {
   const links = [
     { r: { page: 'home' } as const, label: t('Beranda', 'Home') },
     { r: { page: 'app', tab } as const, label: t('Laboratorium', 'Workbench') },
+    { r: { page: 'studio' } as const, label: t('Studio', 'Studio') },
     { r: { page: 'summary' } as const, label: t('Ringkasan', 'Summary') },
     { r: { page: 'about' } as const, label: t('Tentang', 'About') },
   ]
@@ -82,6 +85,7 @@ function Shell() {
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
         {route.page === 'home' && <Landing />}
+        {route.page === 'studio' && <GeometryStudio />}
         {route.page === 'app' && <Workbench tab={tab} />}
         {route.page === 'summary' && <Summary section={route.section} />}
         {route.page === 'about' && <About />}
@@ -101,6 +105,7 @@ export default function App() {
   return (
     <LangProvider>
       <Shell />
+      <SpeedInsights />
     </LangProvider>
   )
 }

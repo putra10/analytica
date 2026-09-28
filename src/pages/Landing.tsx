@@ -1,4 +1,5 @@
-import { ArrowRight, BookOpen, Box, PenLine, Sigma, Waves } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowRight, BookOpen, Box, ChevronDown, PenLine, Sigma, Waves } from 'lucide-react'
 import { useT } from '../lib/i18n'
 import { href } from '../lib/router'
 import { Tex } from '../components/ui/FormulaBlock'
@@ -11,6 +12,14 @@ const MODULES = [
 
 export function Landing() {
   const t = useT()
+  const [workbenchOpen, setWorkbenchOpen] = useState(false)
+  const workbenchMenu = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!workbenchOpen) return
+    const closeEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setWorkbenchOpen(false) }
+    document.addEventListener('keydown', closeEscape)
+    return () => { document.removeEventListener('keydown', closeEscape) }
+  }, [workbenchOpen])
   return (
     <div className="space-y-14 py-6">
       <section className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
@@ -24,9 +33,19 @@ export function Landing() {
                'Analytica draws what is in Brown & Churchill, Vaisman and Herstein: complex functions as colour maps, quadrics rotating into their canonical frame, groups whose tables are coloured by coset. Type a function or an equation from your problem set and see it immediately.')}
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-4">
-            <a href={href({ page: 'app', tab: 'complex' })} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-5 py-2.5 text-sm font-medium text-accent-ink no-underline hover:opacity-90">
-              {t('Buka laboratorium', 'Open the workbench')} <ArrowRight size={16} />
-            </a>
+            <div className="relative" ref={workbenchMenu}>
+              <button type="button" aria-haspopup="menu" aria-expanded={workbenchOpen} onClick={() => setWorkbenchOpen(open => !open)} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-5 py-2.5 text-sm font-medium text-accent-ink transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent">
+                <Box size={16} /> {t('Buka laboratorium', 'Open workbench')} <ChevronDown size={15} className={`transition-transform ${workbenchOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {workbenchOpen && <div role="menu" aria-label={t('Pilih ruang kerja', 'Choose a workspace')} className="absolute left-0 top-full z-40 mt-2 w-[min(19rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow)]">
+                <a role="menuitem" href={href({ page: 'app', tab: 'complex' })} onClick={() => setWorkbenchOpen(false)} className="flex items-start gap-3 rounded-lg px-3 py-3 text-slate-100 no-underline transition-colors hover:bg-slate-800">
+                  <Waves size={17} className="mt-0.5 shrink-0 text-accent" /><span><strong className="block text-sm font-medium">{t('Laboratorium mata kuliah', 'Course workbench')}</strong><span className="mt-1 block text-xs leading-relaxed text-slate-400">{t('Fungsi kompleks, geometri analitik, dan aljabar.', 'Complex functions, analytic geometry, and algebra.')}</span></span>
+                </a>
+                <a role="menuitem" href={href({ page: 'studio' })} onClick={() => setWorkbenchOpen(false)} className="flex items-start gap-3 rounded-lg px-3 py-3 text-slate-100 no-underline transition-colors hover:bg-slate-800">
+                  <Box size={17} className="mt-0.5 shrink-0 text-accent" /><span><strong className="block text-sm font-medium">{t('Studio Geometri', 'Geometry Studio')}</strong><span className="mt-1 block text-xs leading-relaxed text-slate-400">{t('Buat dan hitung objek dalam 2D dan 3D.', 'Create and calculate 2D and 3D objects.')}</span></span>
+                </a>
+              </div>}
+            </div>
             <a href={href({ page: 'summary' })} className="inline-flex items-center gap-2 text-sm text-slate-300 no-underline hover:text-slate-100">
               <BookOpen size={15} /> {t('Ringkasan rumus', 'Formula summary')}
             </a>
