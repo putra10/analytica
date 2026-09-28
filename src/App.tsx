@@ -10,6 +10,7 @@ import { Landing } from './pages/Landing'
 import { Summary } from './pages/Summary'
 import { About } from './pages/About'
 import { GeometryStudio } from './pages/GeometryStudio'
+import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 
 const MODULES: Record<TabId, () => React.JSX.Element> = { complex: ComplexModule, geometry: GeometryModule, algebra: AlgebraModule }
@@ -105,6 +106,7 @@ export default function App() {
   return (
     <LangProvider>
       <Shell />
+      <Analytics />
       <SpeedInsights />
     </LangProvider>
   )
