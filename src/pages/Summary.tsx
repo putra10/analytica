@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react'
-import { AlertTriangle, ArrowUpRight, Lightbulb } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import { SUMMARY } from '../content/summary'
-import { PART_VISUALS, SUMMARY_EXAMPLES, SUMMARY_METHODS } from '../content/summary-examples'
+import { PART_VISUALS, SUMMARY_EXAMPLES } from '../content/summary-examples'
+import { SUMMARY_LESSONS } from '../content/summary-lessons'
+import { SUMMARY_CONCEPTS } from '../content/summary-concepts'
+import { VISUAL_THEOREMS } from '../content/summary-theorems'
 import { useLang, useT } from '../lib/i18n'
 import { href } from '../lib/router'
-import { FormulaBlock } from '../components/ui/FormulaBlock'
 import { SummaryConceptVisual } from '../components/ui/SummaryConceptVisual'
+import { SummaryLesson } from '../components/ui/SummaryLesson'
+import { TheoremExplorer } from '../components/algebra/TheoremExplorer'
 import { cn } from '../lib/utils'
 
 type Point = [number, number]
@@ -77,95 +81,79 @@ function MappingSummaryVisual({ t }: { t: ReturnType<typeof useT> }) {
 export function Summary({ section }: { section?: string }) {
   const t = useT()
   const { lang } = useLang()
-  const [active, setActive] = useState(section ?? SUMMARY[0].id)
-  useEffect(() => { if (section) setActive(section) }, [section])
-  const sec = SUMMARY.find((s) => s.id === active) ?? SUMMARY[0]
+  const sec = SUMMARY.find((s) => s.id === section) ?? SUMMARY[0]
+  const active = sec.id
+  const [selection, setSelection] = useState({ course: active, part: 0, entry: 0 })
+  const [query,setQuery]=useState('')
+  const position = selection.course === active ? selection : { part: 0, entry: 0 }
+  const part = sec.parts[position.part] ?? sec.parts[0]
+  const entry = part.entries[position.entry] ?? part.entries[0]
+  const topics = sec.parts.flatMap((p, i) => p.entries.map((e, j) => ({ part: i, entry: j, title: e.title })))
+  const visualCount=SUMMARY_LESSONS[active].flat().reduce((count,lesson)=>count+1+SUMMARY_CONCEPTS[lesson.visual].length+(VISUAL_THEOREMS[lesson.visual]?.length??0),0)+(active==='algebra'?1:0)
+  const topicIndex = topics.findIndex(p => p.part === position.part && p.entry === position.entry)
+  const choose = (partIndex: number, entryIndex: number) => setSelection({ course: active, part: partIndex, entry: entryIndex })
+  const move = (offset: number) => {
+    const next = topics[topicIndex + offset]
+    if (next) { choose(next.part, next.entry); document.getElementById('summary-topic')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+  }
 
   return (
     <div className="space-y-6 py-4">
       <div>
-        <span className="eyebrow">{t('Ringkasan rumus & teori', 'Formula & theory summary')}</span>
-        <h1 className="font-display mt-2 text-[clamp(30px,4vw,46px)] text-slate-100">{t('Yang perlu diingat, per topik.', 'What to remember, topic by topic.')}</h1>
+        <span className="eyebrow">{t('Ringkasan yang menjelaskan', 'A summary that explains')}</span>
+        <h1 className="font-display mt-2 text-[clamp(30px,4vw,46px)] text-slate-100">{t('Pahami asal rumusnya.', 'Understand where the formula comes from.')}</h1>
         <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-slate-400">
-          {t('Disarikan dari buku kuliah (Brown & Churchill, Vaisman, Herstein) dengan nomor pasal dan teorema. Setiap kelompok topik memiliki diagram; setiap contoh menunjukkan cara mulai, perhitungan, dan makna hasilnya. Tautan "coba" membuka laboratorium yang sesuai.',
-             'Distilled from the course textbooks (Brown & Churchill, Vaisman, Herstein) with section and theorem numbers. Every topic group has a diagram; each example shows how to start, the calculation, and what its result means. The "try" links open the matching lab.')}
+          {t('Pilih subbagian kuliah, lalu ikuti gambar dan penurunannya langkah demi langkah. Setiap topik menjelaskan syarat penggunaan, apa yang bisa gagal, dan contoh dengan alasan di setiap langkah. Rumus buku tersedia setelah penjelasan.',
+             'Choose a lecture subsection, then follow its picture and derivation step by step. Every topic explains its conditions, what can fail, and a worked example with reasons for each step. The textbook formulas follow the explanation.')}
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="course-cards grid gap-3 sm:grid-cols-3">
         {SUMMARY.map((s, i) => (
-          <a key={s.id} href={href({ page: 'summary', section: s.id })} onClick={() => setActive(s.id)}
-            className={cn('inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium no-underline', active === s.id ? 'border-slate-100 bg-slate-100 text-accent-ink' : 'border-border bg-card text-slate-400 hover:text-slate-100')}>
-            <span className="font-mono text-[10px] opacity-60">{String(i + 1).padStart(2, '0')}</span>{s.title[lang]}
+          <a key={s.id} href={href({ page: 'summary', section: s.id })} onClick={()=>setQuery('')} aria-current={active === s.id ? 'page' : undefined}
+            className={cn('flex min-w-0 items-center gap-3 rounded-xl border px-4 py-4 text-sm font-semibold no-underline', active === s.id ? 'border-accent bg-accent-soft text-accent' : 'border-border bg-card text-slate-300 hover:border-accent')}>
+            <span className="course-number font-mono">{String(i + 1).padStart(2, '0')}</span><span>{s.title[lang]}<span className="mt-1 block text-xs font-normal text-slate-400">{s.parts.reduce((n,p)=>n+p.entries.length,0)} {t('topik visual','visual topics')}</span></span>
           </a>
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <nav className="hidden lg:block">
-          <div className="sticky top-20 space-y-1 text-xs">
+      <p className="rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-slate-300">{t(`${topics.length} dari ${topics.length} topik memiliki penjelasan visual · ${visualCount} pilihan konsep`,`${topics.length} of ${topics.length} topics have visual explanations · ${visualCount} concept views`)}</p>
+      <div className="grid gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
+        <nav className="hidden lg:block" aria-label={t('Subbagian dan topik kuliah', 'Lecture subsections and topics')}>
+          <div className="sticky top-20 max-h-[calc(100dvh-100px)] space-y-3 overflow-y-auto pr-2 text-xs">
             <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-slate-500">{sec.source}</p>
             {sec.parts.map((p, i) => (
-              <a key={i} href={`#/summary/${sec.id}#p${i}`} onClick={(e) => { e.preventDefault(); document.getElementById(`${sec.id}-p${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
-                className="block rounded-md px-2 py-1 text-slate-400 no-underline hover:bg-slate-900 hover:text-slate-100">
-                {p.title[lang]}
-              </a>
+              <div key={i}>
+                <button type="button" onClick={() => choose(i, 0)} className={cn('w-full rounded-md px-2 py-2 text-left font-semibold leading-relaxed hover:bg-slate-900', position.part === i ? 'text-accent' : 'text-slate-300')}>{p.title[lang]}</button>
+                {position.part === i && <div className="mt-1 space-y-1 border-l border-border pl-2">{p.entries.map((e, j) => <button key={j} type="button" onClick={() => choose(i, j)} aria-current={position.entry === j ? 'true' : undefined} className={cn('w-full rounded-md px-2 py-2 text-left leading-relaxed', position.entry === j ? 'bg-accent/10 text-slate-100' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100')}>{e.title[lang]}</button>)}</div>}
+              </div>
             ))}
           </div>
         </nav>
 
-        <div className="min-w-0 space-y-8 sm:space-y-10">
-          {sec.parts.map((part, i) => (
-            <section key={i} id={`${sec.id}-p${i}`} className="scroll-mt-20">
-              <h2 className="font-display mb-4 flex items-start gap-3 text-[22px] text-slate-100 sm:text-[26px]">
-                <span className="section-number mt-1.5 shrink-0">{String(i + 1).padStart(2, '0')}</span>{part.title[lang]}
-              </h2>
-              {PART_VISUALS[sec.id]?.[i] && <SummaryConceptVisual course={sec.id} part={i} visual={PART_VISUALS[sec.id][i]} lang={lang} />}
-              {sec.id === 'complex' && i === 1 && <div className="mb-5"><MappingSummaryVisual t={t} /></div>}
-              <div className="space-y-4">
-                {part.entries.map((e, j) => (
-                  <article key={j} className="min-w-0 rounded-[var(--radius)] border border-border bg-card p-4 shadow-[var(--shadow-sm)] sm:p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-[15px] font-semibold text-slate-100">{e.title[lang]}</h3>
-                      {e.lab && <a href={e.lab} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] text-slate-400 no-underline hover:text-accent">{t('coba', 'try')} <ArrowUpRight size={11} /></a>}
-                    </div>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-slate-400">{e.intuition[lang]}</p>
-                    <div className="mt-3 min-w-0 space-y-1 rounded-[var(--radius-sm)] bg-slate-900 px-3 py-2">
-                      {e.formulas.map((f, k) => <FormulaBlock key={k} tex={f} />)}
-                    </div>
-                    {SUMMARY_EXAMPLES[sec.id]?.[i]?.[j] && (
-                      <div className="mt-3 rounded-[var(--radius-sm)] border border-border bg-slate-900/40 p-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-accent">{t('Contoh dikerjakan', 'Worked example')}</p>
-                        <p className="mt-1 text-[13px] text-slate-300">{SUMMARY_EXAMPLES[sec.id][i][j].prompt[lang]}</p>
-                        <div className="mt-3 space-y-2 border-l-2 border-accent/50 pl-3">
-                          <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{t('1 · Cara mulai', '1 · How to start')}</p>
-                            <p className="mt-0.5 text-[12px] leading-relaxed text-slate-300">{SUMMARY_METHODS[sec.id]?.[i]?.[j]?.[lang]}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{t('2 · Hitung', '2 · Calculate')}</p>
-                            <div className="mt-1 overflow-x-auto"><FormulaBlock tex={SUMMARY_EXAMPLES[sec.id][i][j].work} /></div>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{t('3 · Makna hasil', '3 · What it means')}</p>
-                            <p className="mt-0.5 text-[12px] leading-relaxed text-slate-400">{SUMMARY_EXAMPLES[sec.id][i][j].reading[lang]}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <p className="mt-3 flex items-start gap-2 text-[13px] leading-relaxed text-slate-300">
-                      <Lightbulb size={14} className="mt-0.5 shrink-0 text-accent" /><span>{e.insight[lang]}</span>
-                    </p>
-                    {e.pitfall && (
-                      <p className="mt-2 flex items-start gap-2 text-[13px] leading-relaxed text-slate-400">
-                        <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-300" /><span>{e.pitfall[lang]}</span>
-                      </p>
-                    )}
-                  </article>
-                ))}
-              </div>
-            </section>
-          ))}
+        <div className="min-w-0 space-y-5" id="summary-topic">
+          <section className="topic-search">
+            <label htmlFor="topic-search" className="text-xs font-semibold text-slate-300">{t('Cari topik dalam mata kuliah ini','Find a topic in this course')}</label>
+            <input id="topic-search" type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('Misalnya: koset, Taylor, konik…','Try: cosets, Taylor, conics…')} className="mt-2 w-full min-w-0 rounded-lg border border-border bg-card px-4 py-3 text-sm"/>
+            {query.trim()&&<div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-border bg-card p-2" aria-live="polite">{topics.filter(item=>item.title[lang].toLowerCase().includes(query.toLowerCase().trim())).map(item=><button key={`${item.part}-${item.entry}`} type="button" onClick={()=>{choose(item.part,item.entry);setQuery('')}} className="block w-full rounded-lg px-3 py-3 text-left text-sm text-slate-300 hover:bg-accent-soft">{item.title[lang]}</button>)}{!topics.some(item=>item.title[lang].toLowerCase().includes(query.toLowerCase().trim()))&&<p className="px-3 py-3 text-sm text-slate-400">{t('Tidak ada topik yang cocok. Coba istilah lain.','No matching topics. Try another term.')}</p>}</div>}
+          </section>
+          <div className="grid min-w-0 gap-3 rounded-[var(--radius)] border border-border bg-card p-4 sm:grid-cols-2">
+            <label className="min-w-0 text-xs text-slate-400">{t('Subbagian kuliah', 'Lecture subsection')}<select value={position.part} onChange={e => choose(Number(e.target.value), 0)} className="mt-2 w-full min-w-0 rounded-lg border border-border bg-slate-900 p-2.5 text-sm text-slate-100">{sec.parts.map((p, i) => <option key={i} value={i}>{p.title[lang]}</option>)}</select></label>
+            <label className="min-w-0 text-xs text-slate-400">{t('Topik yang ingin dipahami', 'Topic to understand')}<select value={position.entry} onChange={e => choose(position.part, Number(e.target.value))} className="mt-2 w-full min-w-0 rounded-lg border border-border bg-slate-900 p-2.5 text-sm text-slate-100">{part.entries.map((e, i) => <option key={i} value={i}>{e.title[lang]}</option>)}</select></label>
+          </div>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
+            <div className="min-w-0 flex-1"><p className="text-xs leading-relaxed text-slate-400">{part.title[lang]} · {topicIndex + 1}/{topics.length}</p><h2 className="mt-2 text-lg font-semibold leading-snug text-slate-100">{entry.title[lang]}</h2></div>
+            {entry.lab && <a href={entry.lab} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs text-slate-300 no-underline hover:border-accent hover:text-accent">{t('Eksplorasi di lab', 'Explore in the lab')}<ArrowUpRight size={13} /></a>}
+          </div>
+          <SummaryLesson key={`${sec.id}-${position.part}-${position.entry}`} lesson={SUMMARY_LESSONS[sec.id][position.part][position.entry]} example={SUMMARY_EXAMPLES[sec.id][position.part][position.entry]} entry={entry} lang={lang} theoremExplorer={sec.id==='algebra'&&position.part===0&&position.entry===4?<TheoremExplorer lang={lang}/>:undefined} />
+          <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+            <button type="button" disabled={topicIndex === 0} onClick={() => move(-1)} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2.5 text-xs text-slate-300 hover:border-accent disabled:opacity-35"><ChevronLeft size={14} />{t('Topik sebelumnya', 'Previous topic')}</button>
+            <button type="button" disabled={topicIndex === topics.length - 1} onClick={() => move(1)} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2.5 text-xs text-slate-300 hover:border-accent disabled:opacity-35">{t('Topik berikutnya', 'Next topic')}<ChevronRight size={14} /></button>
+          </div>
+          <details className="min-w-0 rounded-[var(--radius)] border border-border bg-card p-4">
+            <summary className="cursor-pointer text-sm text-slate-300">{t('Lihat hubungan topik dalam subbagian ini', 'See how this subsection’s topics connect')}</summary>
+            <div className="mt-4">{PART_VISUALS[sec.id]?.[position.part] && <SummaryConceptVisual course={sec.id} part={position.part} visual={PART_VISUALS[sec.id][position.part]} lang={lang} />}{sec.id === 'complex' && position.part === 1 && <MappingSummaryVisual t={t} />}</div>
+          </details>
         </div>
       </div>
     </div>

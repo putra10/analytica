@@ -65,14 +65,15 @@ function Shell() {
   ]
   return (
     <div className="flex min-h-screen flex-col">
+      <a href="#main-content" onClick={e=>{e.preventDefault();document.getElementById('main-content')?.focus();document.getElementById('main-content')?.scrollIntoView()}} className="skip-link">{t('Lewati ke konten','Skip to content')}</a>
       <header className="sticky top-0 z-30 border-b border-border bg-bg/85 backdrop-blur">
         <div className="mx-auto flex h-[60px] max-w-7xl items-center gap-5 px-4 sm:px-6">
           <a href="#/" className="font-display flex items-center text-[26px] tracking-tight text-slate-100 no-underline">
             Analytica<span className="text-accent">.</span>
           </a>
-          <nav className="ml-2 hidden items-center gap-1 sm:flex">
+          <nav aria-label={t('Navigasi utama','Main navigation')} className="ml-2 hidden items-center gap-1 lg:flex">
             {links.map((l) => (
-              <a key={l.label} href={href(l.r)} className={cn('rounded-full px-3 py-1.5 text-[13px] no-underline transition-colors', route.page === l.r.page ? 'bg-slate-900 text-slate-100' : 'text-slate-400 hover:text-slate-100')}>
+              <a key={l.label} href={href(l.r)} aria-current={route.page===l.r.page?'page':undefined} className={cn('rounded-full px-3 py-1.5 text-[13px] no-underline transition-colors', route.page === l.r.page ? 'bg-accent-soft text-accent' : 'text-slate-400 hover:text-slate-100')}>
                 {l.label}
               </a>
             ))}
@@ -82,9 +83,10 @@ function Shell() {
             <ThemeToggle />
           </span>
         </div>
+        <nav aria-label={t('Navigasi seluler','Mobile navigation')} className="mobile-nav lg:hidden">{links.map(l=><a key={l.label} href={href(l.r)} aria-current={route.page===l.r.page?'page':undefined}>{l.label}</a>)}</nav>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
         {route.page === 'home' && <Landing />}
         {route.page === 'studio' && <GeometryStudio />}
         {route.page === 'app' && <Workbench tab={tab} />}
@@ -93,9 +95,6 @@ function Shell() {
       </main>
 
       <footer className="border-t border-border px-4 py-4 text-center font-mono text-[10px] uppercase tracking-[0.08em] text-slate-500">
-        <nav className="mb-1 flex justify-center gap-4 sm:hidden">
-          {links.map((l) => <a key={l.label} href={href(l.r)} className="no-underline hover:text-slate-100">{l.label}</a>)}
-        </nav>
         Brown &amp; Churchill · Vaisman · Herstein
       </footer>
     </div>

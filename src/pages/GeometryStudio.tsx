@@ -144,6 +144,7 @@ export function GeometryStudio() {
   const [tool, setTool] = useState(false), [reset, setReset] = useState(0), [storageError, setStorageError] = useState(false)
   const [past, setPast] = useState<Entry[][]>([]), [future, setFuture] = useState<Entry[][]>([])
   const results = useMemo(() => calculate(entries), [entries])
+  const readyCount=results.filter(r=>r.shape&&!r.error).length
   useEffect(() => { const timer = setTimeout(() => { try { localStorage.setItem(key, JSON.stringify({ entries, mode })); setStorageError(false) } catch { setStorageError(true) } }, 400); return () => clearTimeout(timer) }, [entries, mode])
   const change = (next: Entry[]) => { setPast(p => [...p.slice(-39), entries]); setFuture([]); setEntries(next) }
   const update = (id: string, patch: Partial<Entry>) => change(entries.map(r => r.id === id ? { ...r, ...patch } : r))
@@ -154,14 +155,18 @@ export function GeometryStudio() {
   return <div className="studio">
     <div className="studio-heading"><div><span className="eyebrow">{t('Ruang matematika terbuka', 'An open math workspace')}</span><h1>{t('Studio Geometri', 'Geometry Studio')}<span>.</span></h1><p>{t('Buat objek. Hubungkan ide. Hitung langsung.', 'Create objects. Connect ideas. Calculate live.')}</p></div><div className="studio-mode">{(['2D', '3D'] as const).map(m => <button key={m} aria-pressed={mode === m} onClick={() => { setMode(m); setTool(false) }}>{m}</button>)}</div></div>
     <div className="studio-toolbar">
+      <div className="studio-tool-group" role="group" aria-label={t('Buat objek','Create objects')}>
       <button onClick={() => mode === '2D' ? setTool(!tool) : addPoint([1, 1, 1])} aria-pressed={tool}>+ {t('Titik', 'Point')}</button>
       <button onClick={() => append(`${unique('l')} = line((-2,0,0),(2,2,${mode === '3D' ? 3 : 0}))`)}>+ {t('Garis', 'Line')}</button>
       <button onClick={() => append(`${unique('c')} = circle((0,0,0),2)`)}>+ {t('Lingkaran', 'Circle')}</button>
       <button onClick={() => append(`${unique('s')} = segment((0,0,0),(3,2,0))`)}>+ {t('Ruas', 'Segment')}</button>
       {mode === '3D' && <><button onClick={() => append(`${unique('p')} = plane(1,1,1,-3)`)}>+ {t('Bidang', 'Plane')}</button><button onClick={() => append(`${unique('s')} = sphere((0,0,0),2)`)}>+ {t('Bola', 'Sphere')}</button></>}
       <button onClick={() => append(mode === '2D' ? 'y = x^2' : 'z = sin(x)*cos(y)')}>+ {t('Fungsi', 'Function')}</button>
+      </div><div className="studio-tool-group studio-history" role="group" aria-label={t('Riwayat dan ekspor','History and export')}>
       <span className="studio-spacer" /><button disabled={!past.length} onClick={() => { setFuture(f => [entries, ...f]); setEntries(past[past.length - 1]); setPast(p => p.slice(0, -1)) }}>{t('Urungkan', 'Undo')}</button><button disabled={!future.length} onClick={() => { setPast(p => [...p, entries]); setEntries(future[0]); setFuture(f => f.slice(1)) }}>{t('Ulangi', 'Redo')}</button><button onClick={exportFile}>{t('Ekspor', 'Export')}</button>
+      </div>
     </div>
+    <div className="studio-status"><span><span className="studio-live-dot"/> {t('Perhitungan langsung','Live calculations')}</span><span>{readyCount} {t('objek siap',readyCount===1?'object ready':'objects ready')}{results.some(r=>r.error)&&` · ${results.filter(r=>r.error).length} ${t('perlu diperbaiki','need attention')}`}</span></div>
     <div className="studio-workspace"><aside className="studio-expressions"><div className="studio-panel-title"><strong>{t('Objek & perhitungan', 'Objects & calculations')}</strong><span>{entries.length}/60</span></div>
       <div className="studio-rows">{results.map((r, i) => <div className="studio-row" key={r.entry.id}>
         <div className="studio-row-top"><button className="studio-dot" aria-label={`${r.entry.visible ? 'Hide' : 'Show'} ${r.name}`} aria-pressed={r.entry.visible} style={{ background: r.entry.visible ? colors[i % colors.length] : 'transparent', borderColor: colors[i % colors.length] }} onClick={() => update(r.entry.id, { visible: !r.entry.visible })} /><span>{r.name}</span><button className="studio-delete" aria-label={`Delete ${r.name}`} onClick={() => change(entries.filter(e => e.id !== r.entry.id))}>×</button></div>
