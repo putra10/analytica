@@ -212,6 +212,25 @@ article[data-lesson] > section { box-shadow:var(--shadow-sm); }
 .diagram-viewport { min-width:0; max-width:100%; overflow-x:auto; border-radius:10px; }
 .diagram-enlarged svg[role=img] { min-width:640px; }
 button, a, select { -webkit-tap-highlight-color:transparent; }
+/* Dropdowns: themed native list everywhere; fully styled picker where the browser supports base-select. */
+select { cursor:pointer; transition:border-color .15s, box-shadow .15s; }
+select:hover { border-color:var(--accent); }
+select:focus-visible { border-color:var(--accent); box-shadow:var(--focus-ring); outline:none; }
+select option { background:var(--surface); color:var(--fg); }
+@supports (appearance: base-select) {
+  select, select::picker(select) { appearance:base-select; }
+  select { display:flex; align-items:center; gap:8px; }
+  select::picker-icon { color:var(--muted); transition:rotate .2s ease; }
+  select:open { border-color:var(--accent); box-shadow:var(--focus-ring); }
+  select:open::picker-icon { rotate:180deg; color:var(--accent); }
+  select::picker(select) { margin-top:6px; padding:6px; border:1px solid var(--border-strong); border-radius:12px; background:var(--surface); box-shadow:var(--shadow); max-height:min(60dvh, 420px); overflow-y:auto; opacity:0; translate:0 -4px; transition:opacity .15s, translate .15s, overlay .15s allow-discrete, display .15s allow-discrete; }
+  select:open::picker(select) { opacity:1; translate:0 0; }
+  @starting-style { select:open::picker(select) { opacity:0; translate:0 -4px; } }
+  select option { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; font-size:14px; line-height:1.45; background:transparent; }
+  select option:hover, select option:focus-visible { background:var(--surface-2); outline:none; }
+  select option:checked { background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  select option::checkmark { order:1; margin-left:auto; color:var(--accent); }
+}
 a:focus-visible, select:focus-visible, summary:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 @media(min-width:1024px) { .mobile-nav:not(.hidden) { display:none; } }
 @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } .eyebrow::before { animation:none; } *,*::before,*::after { transition-duration:0.01ms!important; } }

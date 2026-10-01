@@ -30,7 +30,7 @@ export const SUMMARY: Section[] = [
   {
     id: 'complex',
     title: { id: 'Fungsi Kompleks', en: 'Complex Functions' },
-    source: 'Brown & Churchill, Complex Variables and Applications, 8th ed.',
+    source: 'Brown & Churchill, Complex Variables and Applications, 8th ed.; Zill, Advanced Engineering Mathematics, 6th ed.',
     parts: [
       {
         title: { id: 'Bilangan kompleks (§1-11)', en: 'Complex numbers (§1-11)' },

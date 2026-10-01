@@ -188,6 +188,9 @@ function Sketch({ kind, stage, value, lang }: { kind: VisualKind; stage: number;
   return <><svg viewBox="0 0 440 280" role="img" aria-label={t('Visual matematika untuk langkah terpilih', 'Mathematical visual for the selected step')} className="h-auto w-full"><rect x="1" y="1" width="438" height="278" rx="14" fill="var(--surface)" stroke="var(--border)" />{drawing}</svg>{readout&&<div className="mt-2 min-w-0 rounded-lg border border-border bg-card px-3 py-1"><FormulaBlock tex={readout} /></div>}</>
 }
 
+/** Static, fully revealed picture of a topic for overview thumbnails. */
+export const TopicThumb = ({ kind, lang }: { kind: VisualKind; lang: Lang }) => <div className="[&>div]:hidden"><Sketch kind={kind} stage={2} value={controls[kind]?.initial ?? 3} lang={lang} /></div>
+
 export function DerivationVisual({ kind, stage, lang }: { kind: VisualKind; stage: number; lang: Lang }) {
   const control=controls[kind]
   const [value,setValue]=useState(control?.initial??3)

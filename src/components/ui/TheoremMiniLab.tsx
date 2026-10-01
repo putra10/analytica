@@ -3,18 +3,20 @@ import type { VisualTheorem } from '../../content/summary-theorems'
 import { FormulaBlock } from './FormulaBlock'
 import { SubsectionDiagram } from './SubsectionDiagram'
 import { DiagramViewport } from './DiagramViewport'
+import { CONCEPT_STORIES, StoryPlayer } from './VisualStory'
 
-export function TheoremMiniLab({theorems,lang,selectedIndex}:{theorems:VisualTheorem[];lang:'id'|'en';selectedIndex?:number}) {
+export function TheoremMiniLab({theorems,lang,selectedIndex,kind}:{theorems:VisualTheorem[];lang:'id'|'en';selectedIndex?:number;kind?:string}) {
   const [index,setIndex]=useState(0)
   const active=selectedIndex??index
   const theorem=theorems[active]
+  const story=kind?CONCEPT_STORIES[`${kind}:${active}`]:undefined
   return <section className="min-w-0 rounded-[var(--radius)] border border-border bg-card p-4 sm:p-5">
     <h4 className="text-lg font-semibold text-slate-100">{theorem.title[lang]}</h4>
     {selectedIndex===undefined&&<label className="mt-4 block text-xs text-slate-400">{lang==='en'?'Theorem to explore':'Teorema untuk dipelajari'}
       <select value={index} onChange={e=>setIndex(Number(e.target.value))} className="mt-2 w-full min-w-0 rounded-lg border border-border bg-slate-900 p-3 text-sm text-slate-100">{theorems.map((t,i)=><option value={i} key={i}>{t.title[lang]}</option>)}</select>
     </label>}
     <p className="mt-4 text-sm leading-7 text-slate-300">{theorem.statement[lang]}</p>
-    {theorem.scene==='supplement'?<SubsectionDiagram key={active} theorem={theorem} lang={lang}/>:<TheoremPicture key={active} theorem={theorem} lang={lang}/>}
+    {story?<div className="my-4"><StoryPlayer key={active} story={story} lang={lang}/></div>:theorem.scene==='supplement'?<SubsectionDiagram key={active} theorem={theorem} lang={lang}/>:<TheoremPicture key={active} theorem={theorem} lang={lang}/>}
     <FormulaBlock tex={theorem.tex}/>
     <div className="mt-4 grid gap-4 lg:grid-cols-2">
       <div><h5 className="text-sm font-semibold text-accent">{lang==='en'?'Why it follows':'Mengapa hasilnya demikian'}</h5><p className="mt-2 text-sm leading-7 text-slate-300">{theorem.why[lang]}</p></div>

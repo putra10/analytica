@@ -8,6 +8,7 @@ import { VISUAL_THEOREMS } from '../../content/summary-theorems'
 import { SUMMARY_CONCEPTS } from '../../content/summary-concepts'
 import { TheoremMiniLab } from './TheoremMiniLab'
 import { DerivationVisual } from './DerivationVisual'
+import { STORIES, VisualStory } from './VisualStory'
 import { FormulaBlock } from './FormulaBlock'
 import { cn } from '../../lib/utils'
 
@@ -19,7 +20,10 @@ export function SummaryLesson({ lesson, example, entry, lang, theoremExplorer }:
   const definition = SUMMARY_DEFINITIONS[lesson.visual]
   const concepts=[...SUMMARY_CONCEPTS[lesson.visual],...(VISUAL_THEOREMS[lesson.visual]??[])]
   const [concept,setConcept]=useState(-1)
+  // The picture story above replaces the old diagram, so this section becomes the text companion.
+  const hasStory=Boolean(STORIES[lesson.visual])
   return <article className="min-w-0 space-y-6" data-lesson={lesson.visual}>
+    <VisualStory kind={lesson.visual} lang={lang} />
     <section className="min-w-0 rounded-xl border border-accent/40 bg-accent/5 p-4">
       <h3 className="text-sm font-semibold text-slate-100">{t('Penjelasan visual dalam topik ini','Visual explanations in this topic')} · {1+concepts.length+(theoremExplorer?1:0)}</h3>
       <p className="mt-2 text-xs leading-6 text-slate-300">{t('Setiap pilihan memiliki gambar, alasan matematis, syarat, dan contoh sendiri.','Each choice has its own picture, mathematical reasoning, conditions, and example.')}</p>
@@ -38,7 +42,7 @@ export function SummaryLesson({ lesson, example, entry, lang, theoremExplorer }:
         <button type="button" disabled={concept===concepts.length-(theoremExplorer?0:1)} onClick={()=>setConcept(concept+1)} className="flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-2 text-xs text-slate-300 disabled:opacity-40">{t('Konsep berikutnya','Next concept')}<ChevronRight size={14}/></button>
       </div>
     </section>
-    {concept>=0?(concept===concepts.length?theoremExplorer:<TheoremMiniLab theorems={concepts} selectedIndex={concept} lang={lang}/>):<>
+    {concept>=0?(concept===concepts.length?theoremExplorer:<TheoremMiniLab theorems={concepts} selectedIndex={concept} lang={lang} kind={lesson.visual}/>):<>
     <div>
       <p className="eyebrow">{t('Pertanyaan yang dijawab', 'The question we are answering')}</p>
       <h3 className="font-display mt-2 text-[clamp(22px,3vw,30px)] leading-snug text-slate-100">{lesson.question[lang]}</h3>
@@ -46,25 +50,25 @@ export function SummaryLesson({ lesson, example, entry, lang, theoremExplorer }:
     <section className="min-w-0 overflow-hidden rounded-[var(--radius)] border border-border bg-card shadow-[var(--shadow-sm)]" aria-label={t('Definisi dan penurunan visual', 'Visual definition and derivation')}>
       <div className="border-b border-border p-4 sm:p-5">
         <div className="flex flex-wrap gap-2" role="group" aria-label={t('Definisi atau penurunan', 'Definition or derivation')}>
-          <button type="button" aria-pressed={mode==='definition'} onClick={()=>setMode('definition')} className={cn('rounded-lg border px-3 py-2 text-sm font-semibold',mode==='definition'?'border-accent bg-accent/10 text-slate-100':'border-border text-slate-400')}>{t('Definisi & gambar','Definition & picture')}</button>
+          <button type="button" aria-pressed={mode==='definition'} onClick={()=>setMode('definition')} className={cn('rounded-lg border px-3 py-2 text-sm font-semibold',mode==='definition'?'border-accent bg-accent/10 text-slate-100':'border-border text-slate-400')}>{hasStory?t('Definisi','Definition'):t('Definisi & gambar','Definition & picture')}</button>
           <button type="button" aria-pressed={mode==='derivation'} onClick={()=>setMode('derivation')} className={cn('rounded-lg border px-3 py-2 text-sm font-semibold',mode==='derivation'?'border-accent bg-accent/10 text-slate-100':'border-border text-slate-400')}>{t('Dari mana rumusnya?','Where does the formula come from?')}</button>
         </div>
-        <p className="mt-3 text-xs leading-relaxed text-slate-400">{mode==='definition'?t('Kenali objek dan arti simbolnya dahulu, lalu buka penurunan untuk memahami hubungan matematikanya.','First identify the objects and symbols, then open the derivation to understand the mathematical relationship.'):t('Ikuti alasan dan gambar bersamaan. Setiap langkah menghasilkan langkah berikutnya.', 'Follow the reasoning and picture together. Each step leads to the next.')}</p>
+        <p className="mt-3 text-xs leading-relaxed text-slate-400">{mode==='definition'?t('Kenali objek dan arti simbolnya dahulu, lalu buka penurunan untuk memahami hubungan matematikanya.','First identify the objects and symbols, then open the derivation to understand the mathematical relationship.'):hasStory?t('Ikuti alasannya langkah demi langkah. Gambarnya ada di cerita bergambar di atas.','Follow the reasoning step by step. The picture is in the picture story above.'):t('Ikuti alasan dan gambar bersamaan. Setiap langkah menghasilkan langkah berikutnya.', 'Follow the reasoning and picture together. Each step leads to the next.')}</p>
         {mode==='derivation'&&<div className="mt-4 grid gap-2 sm:grid-cols-3" role="group" aria-label={t('Pilih langkah penjelasan', 'Choose an explanation step')}>
           {lesson.steps.map((item, i) => <button key={i} type="button" aria-pressed={stage === i} onClick={() => setStage(i)} className={cn('flex items-start gap-2 rounded-lg border p-3 text-left text-xs leading-relaxed transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent', stage === i ? 'border-accent bg-accent/10 text-slate-100' : 'border-border text-slate-400 hover:bg-slate-900 hover:text-slate-100')}>
             <span className="font-mono text-accent">0{i + 1}</span><span>{item.title[lang]}</span>
           </button>)}
         </div>}
       </div>
-      <div className="grid min-w-0 gap-5 p-4 sm:p-5 xl:grid-cols-2 xl:items-start">
-        <DerivationVisual kind={lesson.visual} stage={mode==='definition'?2:stage} lang={lang} />
+      <div className={cn('grid min-w-0 gap-5 p-4 sm:p-5', !hasStory && 'xl:grid-cols-2 xl:items-start')}>
+        {!hasStory && <DerivationVisual kind={lesson.visual} stage={mode==='definition'?2:stage} lang={lang} />}
         <div className="min-w-0 space-y-4" aria-live="polite" aria-atomic="true">
           <p className="font-mono text-[11px] uppercase tracking-wide text-accent">{mode==='definition'?t('Apa artinya?','What does it mean?'):`${t('Langkah', 'Step')} ${stage + 1} / ${lesson.steps.length}`}</p>
           <h5 className="text-lg font-semibold text-slate-100">{mode==='definition'?definition.name[lang]:step.title[lang]}</h5>
           <p className="text-sm leading-7 text-slate-300">{mode==='definition'?definition.text[lang]:step.text[lang]}</p>
           <div className="min-w-0 rounded-lg border border-border bg-slate-900 p-3"><FormulaBlock tex={mode==='definition'?definition.tex:step.tex} /></div>
           {mode==='definition'?<>
-            <p className="text-sm leading-7 text-slate-300"><span className="font-semibold text-accent">{t('Cara membaca gambar: ','How to read the picture: ')}</span>{definition.picture[lang]}</p>
+            {!hasStory && <p className="text-sm leading-7 text-slate-300"><span className="font-semibold text-accent">{t('Cara membaca gambar: ','How to read the picture: ')}</span>{definition.picture[lang]}</p>}
             <button type="button" onClick={()=>{setMode('derivation');setStage(0)}} className="inline-flex items-center gap-1 rounded-lg border border-accent px-3 py-2 text-xs text-accent">{t('Ikuti penurunannya','Follow the derivation')}<ChevronRight size={14} /></button>
           </>:<div className="flex items-center justify-between gap-2 pt-2">
             <button type="button" onClick={() => setStage(stage - 1)} disabled={stage === 0} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-slate-200 hover:border-accent disabled:cursor-default disabled:opacity-35"><ChevronLeft size={14} />{t('Sebelumnya', 'Previous')}</button>

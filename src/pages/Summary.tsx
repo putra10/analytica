@@ -9,6 +9,7 @@ import { useLang, useT } from '../lib/i18n'
 import { href } from '../lib/router'
 import { SummaryConceptVisual } from '../components/ui/SummaryConceptVisual'
 import { SummaryLesson } from '../components/ui/SummaryLesson'
+import { SummaryOverview } from '../components/ui/SummaryOverview'
 import { TheoremExplorer } from '../components/algebra/TheoremExplorer'
 import { cn } from '../lib/utils'
 
@@ -117,6 +118,9 @@ export function Summary({ section }: { section?: string }) {
         ))}
       </div>
 
+      <SummaryOverview sec={sec} lessons={SUMMARY_LESSONS[active]} lang={lang} current={[position.part, position.entry]} onPick={(p, e) => { choose(p, e); document.getElementById('summary-topic')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+        title={t('Peta visual mata kuliah: klik gambar untuk membuka topik', 'Visual course map: click a picture to open its topic')}
+        hint={t('Setiap kartu menunjukkan gambar kunci dan rumus utama sebuah topik, dikelompokkan menurut subbagian kuliah.', 'Each card shows a topic’s key picture and main formula, grouped by lecture subsection.')} />
       <p className="rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-slate-300">{t(`${topics.length} dari ${topics.length} topik memiliki penjelasan visual · ${visualCount} pilihan konsep`,`${topics.length} of ${topics.length} topics have visual explanations · ${visualCount} concept views`)}</p>
       <div className="grid gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
         <nav className="hidden lg:block" aria-label={t('Subbagian dan topik kuliah', 'Lecture subsections and topics')}>
@@ -138,8 +142,8 @@ export function Summary({ section }: { section?: string }) {
             {query.trim()&&<div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-border bg-card p-2" aria-live="polite">{topics.filter(item=>item.title[lang].toLowerCase().includes(query.toLowerCase().trim())).map(item=><button key={`${item.part}-${item.entry}`} type="button" onClick={()=>{choose(item.part,item.entry);setQuery('')}} className="block w-full rounded-lg px-3 py-3 text-left text-sm text-slate-300 hover:bg-accent-soft">{item.title[lang]}</button>)}{!topics.some(item=>item.title[lang].toLowerCase().includes(query.toLowerCase().trim()))&&<p className="px-3 py-3 text-sm text-slate-400">{t('Tidak ada topik yang cocok. Coba istilah lain.','No matching topics. Try another term.')}</p>}</div>}
           </section>
           <div className="grid min-w-0 gap-3 rounded-[var(--radius)] border border-border bg-card p-4 sm:grid-cols-2">
-            <label className="min-w-0 text-xs text-slate-400">{t('Subbagian kuliah', 'Lecture subsection')}<select value={position.part} onChange={e => choose(Number(e.target.value), 0)} className="mt-2 w-full min-w-0 rounded-lg border border-border bg-slate-900 p-2.5 text-sm text-slate-100">{sec.parts.map((p, i) => <option key={i} value={i}>{p.title[lang]}</option>)}</select></label>
-            <label className="min-w-0 text-xs text-slate-400">{t('Topik yang ingin dipahami', 'Topic to understand')}<select value={position.entry} onChange={e => choose(position.part, Number(e.target.value))} className="mt-2 w-full min-w-0 rounded-lg border border-border bg-slate-900 p-2.5 text-sm text-slate-100">{part.entries.map((e, i) => <option key={i} value={i}>{e.title[lang]}</option>)}</select></label>
+            <label className="min-w-0 text-xs text-slate-400">{t('Subbagian kuliah', 'Lecture subsection')}<select value={position.part} onChange={e => choose(Number(e.target.value), 0)} className="mt-2 w-full min-w-0 rounded-lg border border-border bg-slate-900 p-2.5 text-sm text-slate-100">{sec.parts.map((p, i) => <option key={i} value={i}>{i + 1}. {p.title[lang]}</option>)}</select></label>
+            <label className="min-w-0 text-xs text-slate-400">{t('Topik yang ingin dipahami', 'Topic to understand')}<select value={position.entry} onChange={e => choose(position.part, Number(e.target.value))} className="mt-2 w-full min-w-0 rounded-lg border border-border bg-slate-900 p-2.5 text-sm text-slate-100">{part.entries.map((e, i) => <option key={i} value={i}>{position.part + 1}.{i + 1}  {e.title[lang]}</option>)}</select></label>
           </div>
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
             <div className="min-w-0 flex-1"><p className="text-xs leading-relaxed text-slate-400">{part.title[lang]} · {topicIndex + 1}/{topics.length}</p><h2 className="mt-2 text-lg font-semibold leading-snug text-slate-100">{entry.title[lang]}</h2></div>
