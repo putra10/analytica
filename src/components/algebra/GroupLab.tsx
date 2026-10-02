@@ -1,96 +1,150 @@
-import { useCallback, useMemo, useState } from 'react'
-import { Grid3x3, Layers, Shuffle } from 'lucide-react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { Grid3x3, Layers, ListOrdered } from 'lucide-react'
 import {
-  GROUP_CATALOG, center, cosets, generators, isAbelian, isCyclic, isNormal, isomorphism, mul,
-  orderProfile, permutationGroupFrom, quotient, range, subgroups, type Group,
+  GROUP_CATALOG, center, cosets, elementOrder, generators, isAbelian, isCyclic, isNormal, leftCoset, mul,
+  orderProfile, permutationGroupFrom, rightCoset, subgroups, type Group,
 } from '../../lib/group-theory'
 import { useLang, useT } from '../../lib/i18n'
-import { cn } from '../../lib/utils'
-import { Layout } from '../ui/Layout'
 import { MathCard, Chip, TextField, Toggle } from '../ui/MathCard'
-import { Tex, FormulaBlock } from '../ui/FormulaBlock'
+import { Tex } from '../ui/FormulaBlock'
+import { C, T, type P } from '../stories/kit'
 import { CosetCollapse } from './CosetCollapse'
 import { KernelLab } from './KernelLab'
-import { HUES, labelTex } from './CollapseDiagram'
+import { CayleyPic, LabLayout, Link, Node, Pic, PicCard, Steps } from './pics'
+import { additive, clockAt, compact, cosetName, labelTex, layoutBags, pal, textW } from './pic-utils'
 
 const setTex = (g: Group, elems: number[]) => `\\{${elems.map((i) => labelTex(g.labels[i])).join(',\\ ')}\\}`
+const setTxt = (g: Group, elems: number[], max = 5) => `{${elems.slice(0, max).map((i) => compact(g.labels[i])).join(', ')}${elems.length > max ? ', …' : ''}}`
 
-/** Coloured Cayley table; cells coloured by element, or by coset of H when given. */
-function CayleyTable({ g, cosetOf, side }: { g: Group; cosetOf?: number[]; side: 'left' | 'right' }) {
-  const cs = useMemo(() => (cosetOf ? cosets(g, cosetOf, side) : null), [g, cosetOf, side])
-  const cosetIndex = useMemo(() => {
-    const m = new Map<number, number>()
-    cs?.forEach((c, i) => c.elems.forEach((x) => m.set(x, i)))
-    return m
-  }, [cs])
-  const color = (x: number) => (cs ? HUES(cs.length, cosetIndex.get(x)!) : HUES(g.order, x))
-  const cell = g.order > 12 ? 'h-5 min-w-5 text-[9px]' : g.order > 8 ? 'h-7 min-w-7 text-[10px]' : 'h-9 min-w-9 text-xs'
+/**
+ * Cyclic groups on a clock (the powers of a generator going round), cosets of H as coloured
+ * polygons, like the Z₁₂ stories; any other group as coloured bags of cosets.
+ */
+function CosetPicture({ g, H, cs, side }: { g: Group; H?: number[]; cs: { rep: number; elems: number[] }[]; side: 'left' | 'right' }) {
+  const t = useT()
+  const cyc = isCyclic(g) && g.order <= 24
+  const cosetOf = new Map<number, number>()
+  cs.forEach((c, i) => c.elems.forEach((x) => cosetOf.set(x, i)))
+  const lagrange = H ? `${g.order} = ${cs.length} × ${H.length}` : `|G| = ${g.order}`
+
+  if (cyc) {
+    const a = generators(g)[0], n = g.order
+    // powers[k] = a^k, so the clock shows "keep applying a"
+    const powers: number[] = [g.e]
+    for (let k = 1; k < n; k++) powers.push(mul(g, powers[k - 1], a))
+    const slot = new Map(powers.map((x, k) => [x, k]))
+    const ctr: P = [150, 152], R = n > 16 ? 118 : 110, at = clockAt(ctr, R, n)
+    const r = n > 16 ? 12 : 15, size = n > 16 ? 11 : 14
+    const lines = H ? cs.slice(0, 6).map((c, i) => ({ s: `${cosetName(g, c.rep, side)} = ${setTxt(g, c.elems, 4)}`, color: pal(i, cs.length) })) : []
+    const fs = Math.min(14, ...lines.map((l) => (14 * 160) / Math.max(textW(l.s, 14), 1)))
+    return (
+      <Pic h={300} label={t('Grup siklik pada jam', 'A cyclic group on a clock')}>
+        <circle cx={ctr[0]} cy={ctr[1]} r={R} fill="none" stroke={C.faint} />
+        {H && cs.map((c, i) => {
+          const pts = c.elems.map((x) => slot.get(x)!).sort((p, q) => p - q).map(at)
+          return pts.length > 1 && <path key={i} d={pts.map((p, j) => `${j ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ') + (pts.length > 2 ? ' Z' : '')} fill={pal(i, cs.length)} fillOpacity=".12" stroke={pal(i, cs.length)} strokeWidth="2.5" />
+        })}
+        {!H && powers.map((_, k) => <Link key={k} p={at(k)} q={at((k + 1) % n)} color={C.a} width={1.8} r1={r + 2} r2={r + 4} />)}
+        {powers.map((x, k) => {
+          const i = cosetOf.get(x)
+          return <Node key={x} at={at(k)} label={compact(g.labels[x])} r={r} size={size} fill={H && i !== undefined ? pal(i, cs.length) : C.bg} stroke={H && i !== undefined ? pal(i, cs.length) : C.a} />
+        })}
+        <T x={300} y={42} anchor="start" size={18} weight={700} color={C.a}>G = ⟨{compact(g.labels[a])}⟩</T>
+        <T x={300} y={66} anchor="start" size={13} color={C.mu}>{H ? t('koset: H yang diputar', 'cosets: H rotated') : `${t('panah: langkah', 'arrows: step')} ${additive(g.id) ? '+' : '·'}${compact(g.labels[a])}`}</T>
+        {lines.map((l, i) => (
+          <g key={i}>
+            <rect x={300} y={88 + i * 28} width={12} height={12} rx={3} fill={l.color} />
+            <T x={318} y={99 + i * 28} anchor="start" size={fs}>{l.s}</T>
+          </g>
+        ))}
+        {cs.length > 6 && H && <T x={318} y={99 + 6 * 28} anchor="start" size={13} color={C.mu}>… {t(`${cs.length} koset`, `${cs.length} cosets`)}</T>}
+        <T x={300} y={282} anchor="start" size={16} weight={700} color={C.v}>{lagrange}</T>
+      </Pic>
+    )
+  }
+
+  const bags = H
+    ? cs.slice(0, 12).map((c, i) => ({ title: cosetName(g, c.rep, side), color: pal(i, cs.length), items: c.elems.map((x) => compact(g.labels[x])) }))
+    : [{ title: `G, |G| = ${g.order}`, color: C.a, items: g.labels.map(compact) }]
+  const L = layoutBags(bags, 480, 14)
   return (
-    <div className="h-full w-full overflow-auto p-3">
-      <table className="border-separate border-spacing-0.5 font-mono">
-        <thead>
-          <tr>
-            <th className={cn('sticky left-0 top-0 bg-card text-slate-500', cell)}>·</th>
-            {range(g.order).map((b) => <th key={b} className={cn('sticky top-0 bg-card font-normal text-slate-300', cell)}>{g.labels[b]}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {range(g.order).map((a) => (
-            <tr key={a}>
-              <th className={cn('sticky left-0 bg-card font-normal text-slate-300', cell)}>{g.labels[a]}</th>
-              {range(g.order).map((b) => {
-                const x = mul(g, a, b)
-                return (
-                  <td key={b} className={cn('rounded-sm text-center text-slate-900', cell)} style={{ background: color(x), opacity: 0.9 }} title={`${g.labels[a]} · ${g.labels[b]} = ${g.labels[x]}`}>
-                    {g.labels[x]}
-                  </td>
-                )
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Pic h={L.bottom + 42} label={t('Koset sebagai kantong', 'Cosets as bags')}>
+      {L.node}
+      <T x={240} y={L.bottom + 28} size={15} weight={700} color={C.v}>{H ? `|G| = [G:H] · |H|:  ${lagrange}${cs.length > 12 ? t('  (12 kantong pertama)', '  (first 12 bags)') : ''}` : t('pilih subgrup H untuk membaginya', 'pick a subgroup H to split it')}</T>
+    </Pic>
   )
 }
 
 export function GroupLab() {
   const t = useT()
   const { lang } = useLang()
-  const [gid, setGid] = useState('S3')
-  const [hid, setHid] = useState('D3')
+  const [gid, setGid] = useState('Z12')
   const [subIdx, setSubIdx] = useState<number | null>(null)
   const [side, setSide] = useState<'left' | 'right'>('right')
   const [customText, setCustomText] = useState('(1 2 3 4), (1 3)')
   const customGroup = useMemo(() => {
     try { return { ok: true as const, g: permutationGroupFrom(customText) } } catch (e) { return { ok: false as const, error: (e as Error).message } }
   }, [customText])
-
-  // while the custom generators are being typed they are often unparseable; fall back to a catalog
-  // group rather than indexing past the end of it (the field shows why below)
+  // while the custom generators are being typed they are often unparseable; fall back to a catalog group
   const resolve = useCallback(
     (id: string) => (id === 'custom' && customGroup.ok ? customGroup.g : (GROUP_CATALOG.find((c) => c.id === id) ?? GROUP_CATALOG[0]).make()),
     [customGroup],
   )
   const g = useMemo(() => resolve(gid), [gid, resolve])
-  const h = useMemo(() => resolve(hid), [hid, resolve])
   const subs = useMemo(() => subgroups(g), [g])
   const H = subIdx !== null ? subs[subIdx] : undefined
   const normal = H ? isNormal(g, H) : false
-  const cs = H ? cosets(g, H, side) : []
-  const Q = H && normal && H.length < g.order ? quotient(g, H) : null
+  const cs = useMemo(() => (H ? cosets(g, H, side) : []), [g, H, side])
   const abelian = isAbelian(g)
   const cyc = isCyclic(g)
   const gens = cyc ? generators(g) : []
   const Z = center(g)
-  const iso = useMemo(() => isomorphism(g, h), [g, h])
+  const add = additive(g.id)
+  const extra = useMemo(() => (customGroup.ok ? { id: 'custom', make: () => customGroup.g } : undefined), [customGroup])
 
   const pick = (id: string) => { setGid(id); setSubIdx(null) }
-  const H_CATALOG = [...GROUP_CATALOG.map((c) => ({ id: c.id, name: c.make().name })), ...(customGroup.ok ? [{ id: 'custom', name: customGroup.g.name }] : [])]
+  const cosetIdx = new Map<number, number>()
+  cs.forEach((c, i) => c.elems.forEach((x) => cosetIdx.set(x, i)))
+
+  // hand-written working: list the cosets, count them (Lagrange), then test normality
+  const steps = () => {
+    if (!H) return [{ text: t('Pilih subgrup H untuk melihat langkah-langkah daftar koset dan hitungan Lagrange.', 'Pick a subgroup H to see the coset listing and the Lagrange count worked out.') }]
+    const name = (rep: number) => labelTex(cosetName(g, rep, side))
+    const out: { text: ReactNode; tex?: string; tone?: 'good' | 'bad' }[] = [
+      { text: t('Tulis H dan hitung ukurannya.', 'Write down H and count it.'), tex: `H = ${setTex(g, H)},\\quad |H| = ${H.length}` },
+    ]
+    cs.slice(0, 4).forEach((c, i) => {
+      if (i === 0) return
+      out.push({
+        text: t(`Ambil unsur yang belum tercakup, a = ${compact(g.labels[c.rep])}, lalu ${add ? 'tambahkan a ke' : side === 'right' ? 'kalikan dari kanan dengan a' : 'kalikan dari kiri dengan a'} setiap anggota H.`,
+                `Take an element not covered yet, a = ${compact(g.labels[c.rep])}, and ${add ? 'add a to' : side === 'right' ? 'multiply on the right by a' : 'multiply on the left by a'} every member of H.`),
+        tex: `${name(c.rep)} = ${setTex(g, c.elems)}`,
+      })
+    })
+    if (cs.length > 4) out.push({ text: t(`Ulangi sampai semua unsur tercakup: total ${cs.length} koset, tidak ada yang tumpang tindih.`, `Repeat until every element is covered: ${cs.length} cosets in all, none overlapping.`) })
+    out.push({ text: t('Lagrange: koset sama besar dan saling lepas, jadi ukuran grup = banyak koset × ukuran H.', 'Lagrange: the cosets have equal size and do not overlap, so the group size = number of cosets × size of H.'), tex: `|G| = [G:H]\\,|H|:\\quad ${g.order} = ${cs.length} \\cdot ${H.length}` })
+    if (normal) out.push({ text: t('Untuk setiap a, koset kiri aH sama dengan koset kanan Ha, jadi H normal dan G/H adalah grup.', 'For every a the left coset aH equals the right coset Ha, so H is normal and G/H is a group.'), tex: `aH = Ha\\ \\forall a \\Rightarrow H \\lhd G,\\quad |G/H| = ${cs.length}`, tone: 'good' })
+    else {
+      const a = g.labels.findIndex((_, x) => leftCoset(g, x, H).join() !== rightCoset(g, x, H).join())
+      out.push({ text: t(`Cek normal: untuk a = ${compact(g.labels[a])} koset kiri dan kanan berbeda, jadi H tidak normal.`, `Normality check: for a = ${compact(g.labels[a])} the left and right cosets differ, so H is not normal.`), tex: `${labelTex(g.labels[a])}H = ${setTex(g, leftCoset(g, a, H))} \\neq H${labelTex(g.labels[a])} = ${setTex(g, rightCoset(g, a, H))}`, tone: 'bad' })
+    }
+    return out
+  }
 
   return (
-    <Layout
-      canvas={<CayleyTable g={g} cosetOf={H} side={side} />}
+    <LabLayout
+      picture={
+        <>
+          <PicCard eyebrow={t('Gambar', 'Picture')} title={cyc && g.order <= 24 ? t('Grup siklik di jam, koset sebagai bangun yang diputar', 'A cyclic group on a clock, cosets as rotated shapes') : t('Koset sebagai kantong', 'Cosets as bags')}
+            caption={H ? t(`Setiap warna satu koset. ${cs.length} koset × ${H.length} unsur = ${g.order}: ukuran subgrup membagi ukuran grup.`, `Each colour is one coset. ${cs.length} cosets × ${H.length} elements = ${g.order}: a subgroup's size divides the group's size.`) : t('Pilih subgrup H di panel kanan; G akan terbagi menjadi koset-kosetnya.', 'Pick a subgroup H on the right; G will split into its cosets.')}>
+            <CosetPicture g={g} H={H} cs={cs} side={side} />
+          </PicCard>
+          <PicCard eyebrow={t('Tabel Cayley', 'Cayley table')} title={`${g.name}: ${t('baris · kolom', 'row · column')}`}
+            caption={H ? t('Sel diwarnai menurut koset hasil kalinya, dengan warna yang sama seperti gambar di atas.', 'Cells are coloured by the coset of their product, with the same colours as the picture above.') : t('Sel hijau = e. Setiap baris memuat e tepat sekali, di kolom invers unsur baris itu.', 'Green cells = e. Every row has e exactly once, in the column of that row’s inverse.')}>
+            <CayleyPic g={g} sym={add ? '+' : '·'} label={t('Tabel Cayley', 'Cayley table')} tone={(x) => (H ? pal(cosetIdx.get(x) ?? 0, cs.length) : x === g.e ? C.g : undefined)} />
+          </PicCard>
+        </>
+      }
       controls={
         <div className="space-y-4">
           <MathCard title={t('Grup G', 'Group G')} icon={<Grid3x3 size={16} />}>
@@ -101,14 +155,14 @@ export function GroupLab() {
             <div className="mt-2">
               <label className="mb-1 block text-[11px] text-slate-500">{t('Subgrup Sₙ yang dibangun oleh permutasi (notasi siklus, pisahkan koma):', 'Subgroup of Sₙ generated by permutations (cycle notation, comma separated):')}</label>
               <TextField value={customText} onChange={(v) => { setCustomText(v); if (gid !== 'custom') pick('custom') }} placeholder="(1 2 3 4), (1 3)" invalid={gid === 'custom' && !customGroup.ok} />
-              {gid === 'custom' && !customGroup.ok && <p className="mt-1 text-[11px] text-rose-300">{customGroup.error}</p>}
+              {gid === 'custom' && !customGroup.ok && <p className="mt-1 text-[11px] text-rose-300">{t('Tidak dapat dibaca. Contoh: (1 2 3 4), (1 3)', 'Cannot read this. Example: (1 2 3 4), (1 3)')}</p>}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-slate-400">{g.description[lang]}</p>
             <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-300">
               <span><Tex tex={`|G| = ${g.order}`} /></span>
               <span>{abelian ? t('abelian', 'abelian') : t('tak-abelian', 'non-abelian')}</span>
               <span>{cyc ? <>{t('siklik', 'cyclic')}, <Tex tex={`G = (${labelTex(g.labels[gens[0]])})`} /></> : t('tidak siklik', 'not cyclic')}</span>
-              <span><Tex tex={`Z(G) = ${setTex(g, Z)}`} /></span>
+              <span className="min-w-0 overflow-x-auto"><Tex tex={`|Z(G)| = ${Z.length}`} /></span>
             </div>
             <p className="mt-2 text-[11px] text-slate-500">
               {t('Orde unsur: ', 'Element orders: ')}
@@ -117,107 +171,28 @@ export function GroupLab() {
           </MathCard>
 
           <MathCard title={<span>{t('Subgrup', 'Subgroups')} <Tex tex="H \le G" /></span>} icon={<Layers size={16} />}>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex max-h-48 flex-wrap gap-1.5 overflow-auto">
               {subs.map((s, i) => (
                 <Chip key={i} active={subIdx === i} onClick={() => setSubIdx(subIdx === i ? null : i)}>
-                  {s.length === 1 ? `{e}` : s.length === g.order ? 'G' : `|H|=${s.length}: ${s.slice(0, 3).map((x) => g.labels[x]).join(',')}${s.length > 3 ? ',…' : ''}`}
+                  {s.length === 1 ? '{e}' : s.length === g.order ? 'G' : `|H|=${s.length}: ${s.slice(0, 3).map((x) => compact(g.labels[x])).join(',')}${s.length > 3 ? ',…' : ''}`}
                 </Chip>
               ))}
             </div>
             <p className="mt-2 text-[11px] text-slate-500">
               {t(`${subs.length} subgrup. Orde setiap subgrup membagi |G| (Lagrange).`, `${subs.length} subgroups. Every subgroup order divides |G| (Lagrange).`)}
             </p>
-            {H && (
-              <div className="mt-2 space-y-2">
-                <Toggle label={t('Koset kanan Ha (mati: koset kiri aH)', 'Right cosets Ha (off: left cosets aH)')} checked={side === 'right'} onChange={(v) => setSide(v ? 'right' : 'left')} />
-                <p className="text-[11px] text-slate-500">{t('Tabel Cayley diwarnai menurut koset.', 'The Cayley table is coloured by coset.')}</p>
-              </div>
-            )}
+            {H && !add && <div className="mt-2"><Toggle label={t('Koset kanan Ha (mati: koset kiri aH)', 'Right cosets Ha (off: left cosets aH)')} checked={side === 'right'} onChange={(v) => setSide(v ? 'right' : 'left')} /></div>}
           </MathCard>
         </div>
       }
       theory={
         <div className="grid gap-4 lg:grid-cols-3">
-          <CosetCollapse g={g} H={H} cs={cs} side={side} normal={normal} />
-
-          <KernelLab g={g} h={h} />
-
-          <MathCard title={t('Koset, Lagrange, subgrup normal', 'Cosets, Lagrange, normal subgroups')} icon={<Layers size={16} />}>
-            {H ? (
-              <div className="space-y-1">
-                <FormulaBlock tex={`H = ${setTex(g, H)},\\quad |H| = ${H.length},\\quad [G:H] = \\frac{|G|}{|H|} = ${g.order / H.length}`} />
-                <div className="max-h-40 space-y-0.5 overflow-auto text-xs">
-                  {cs.map((c, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: HUES(cs.length, i) }} />
-                      <Tex tex={`${side === 'right' ? `H${labelTex(g.labels[c.rep])}` : `${labelTex(g.labels[c.rep])}H`} = ${setTex(g, c.elems)}`} />
-                    </div>
-                  ))}
-                </div>
-                <p className={cn('text-xs', normal ? 'text-emerald-300' : 'text-rose-300')}>
-                  {normal
-                    ? t(<>Koset kiri = koset kanan untuk setiap a: <Tex tex="H \lhd G" /> (subgrup normal).</>, <>Left cosets = right cosets for every a: <Tex tex="H \lhd G" /> (normal subgroup).</>)
-                    : t(<>Ada a dengan <Tex tex="aH \neq Ha" />: H tidak normal. Ubah saklar koset untuk membandingkan.</>, <>Some a has <Tex tex="aH \neq Ha" />: H is not normal. Flip the coset switch to compare.</>)}
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-slate-500">{t('Pilih subgrup H.', 'Pick a subgroup H.')}</p>
-            )}
-            <p className="mt-2 text-xs leading-relaxed text-slate-400">
-              {t(<>Teorema Lagrange (2.4): jika G berhingga dan <Tex tex="H \le G" /> maka <Tex tex="|H| \mid |G|" />; koset-koset <Tex tex="Ha" /> mempartisi G menjadi <Tex tex="[G:H]" /> kelas berukuran sama. Akibat: orde setiap unsur membagi <Tex tex="|G|" />, dan grup berorde prima pasti siklik.</>,
-                 <>Lagrange's theorem (2.4): if G is finite and <Tex tex="H \le G" /> then <Tex tex="|H| \mid |G|" />; the cosets <Tex tex="Ha" /> partition G into <Tex tex="[G:H]" /> classes of equal size. Consequently every element order divides <Tex tex="|G|" />, and a group of prime order is cyclic.</>)}
-            </p>
+          <MathCard title={t('Langkah demi langkah: koset dan Lagrange', 'Step by step: cosets and Lagrange')} icon={<ListOrdered size={16} />} className="lg:col-span-1">
+            <Steps steps={steps()} />
+            {H && <p className="mt-3 text-[12px] text-slate-400">{t(`Akibat Lagrange: orde setiap unsur membagi ${g.order}. Di sini orde unsur: ${[...new Set(g.labels.map((_, x) => elementOrder(g, x)))].sort((p, q) => p - q).join(', ')}.`, `Consequence of Lagrange: every element order divides ${g.order}. Here the element orders are ${[...new Set(g.labels.map((_, x) => elementOrder(g, x)))].sort((p, q) => p - q).join(', ')}.`)}</p>}
           </MathCard>
-
-          <MathCard title={t('Grup faktor G/N', 'Factor group G/N')} icon={<Grid3x3 size={16} />}>
-            {Q ? (
-              <div className="space-y-2">
-                <FormulaBlock tex={`|G/N| = ${Q.order}`} />
-                <div className="overflow-auto">
-                  <table className="border-separate border-spacing-0.5 font-mono text-[10px]">
-                    <thead><tr><th className="text-slate-500">·</th>{range(Q.order).map((b) => <th key={b} className="px-1 font-normal text-slate-300">{Q.labels[b]}</th>)}</tr></thead>
-                    <tbody>
-                      {range(Q.order).map((a) => (
-                        <tr key={a}>
-                          <th className="px-1 font-normal text-slate-300">{Q.labels[a]}</th>
-                          {range(Q.order).map((b) => <td key={b} className="rounded-sm px-1 text-center text-slate-900" style={{ background: HUES(Q.order, mul(Q, a, b)) }}>{Q.labels[mul(Q, a, b)]}</td>)}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <p className="text-xs text-slate-400">
-                  {t(<>Perkalian koset <Tex tex="(Na)(Nb) = N(ab)" /> terdefinisi dengan baik karena N normal (2.6). </>, <>Coset multiplication <Tex tex="(Na)(Nb) = N(ab)" /> is well defined because N is normal (2.6). </>)}
-                  {isAbelian(Q) ? t('G/N abelian.', 'G/N is abelian.') : t('G/N tak-abelian.', 'G/N is non-abelian.')}
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-slate-500">
-                {H && !normal ? t('H tidak normal: G/H bukan grup.', 'H is not normal: G/H is not a group.') : t('Pilih subgrup normal sejati N untuk membentuk G/N.', 'Pick a proper normal subgroup N to form G/N.')}
-              </p>
-            )}
-          </MathCard>
-
-          <MathCard title={t('Isomorfisma & homomorfisma', 'Isomorphism & homomorphism')} icon={<Shuffle size={16} />}>
-            <p className="mb-1 text-[11px] text-slate-500">{t('Grup pembanding H:', 'Comparison group H:')}</p>
-            <div className="flex flex-wrap gap-1">
-              {H_CATALOG.map((c) => <Chip key={c.id} active={c.id === hid} onClick={() => setHid(c.id)} className="px-1.5 py-0.5 text-[10px]">{c.name}</Chip>)}
-            </div>
-            <p className="mt-2 text-sm">
-              <Tex tex={`${g.tex} ${iso.isomorphic ? '\\cong' : '\\not\\cong'} ${h.tex}`} />
-              <span className="ml-2 text-xs text-slate-400">
-                {iso.reason === 'order' && t('(orde berbeda)', '(different orders)')}
-                {iso.reason === 'abelian' && t('(satu abelian, satu tidak)', '(one abelian, one not)')}
-                {iso.reason === 'profile' && t('(banyaknya unsur tiap orde berbeda)', '(different numbers of elements of each order)')}
-                {iso.reason === 'search' && t('(tidak ada bijeksi yang mengawetkan operasi)', '(no operation-preserving bijection)')}
-                {iso.isomorphic && iso.map && <> {t('via', 'via')} <Tex tex={`${g.labels[1] ?? ''} \\mapsto ${labelTex(h.labels[iso.map[1]] ?? '')}`} /></>}
-              </span>
-            </p>
-            <p className="mt-2 text-xs leading-relaxed text-slate-400">
-              {t(<>Invarian isomorfisma: orde, keabelan, banyaknya unsur tiap orde. Bila semuanya cocok, program mencari bijeksi <Tex tex="\varphi" /> dengan <Tex tex="\varphi(ab) = \varphi(a)\varphi(b)" /> dari bayangan pembangkit.</>,
-                 <>Isomorphism invariants: order, commutativity, number of elements of each order. When they all agree, the program searches for a bijection <Tex tex="\varphi" /> with <Tex tex="\varphi(ab) = \varphi(a)\varphi(b)" /> from generator images.</>)}
-            </p>
-          </MathCard>
+          <div className="min-w-0 lg:col-span-2"><CosetCollapse g={g} H={H} cs={cs} side={side} normal={normal} /></div>
+          <KernelLab g={g} extra={extra} />
         </div>
       }
     />

@@ -1,17 +1,17 @@
 import { Combine } from 'lucide-react'
-import type { Group } from '../../lib/group-theory'
+import { isAbelian, mul, quotient, range, type Group } from '../../lib/group-theory'
 import { useT } from '../../lib/i18n'
-import { cn } from '../../lib/utils'
 import { MathCard } from '../ui/MathCard'
 import { Tex } from '../ui/FormulaBlock'
-import { CollapseDiagram, HUES, TINT, labelTex, type Block, type Target } from './CollapseDiagram'
+import { CollapseDiagram, type Block, type Target } from './CollapseDiagram'
+import { TablePic } from './pics'
+import { additive, compact, cosetName, pal } from './pic-utils'
 
-/** Blocks are wide enough to read; past this many cosets we show a prefix and say so. */
+/** Bags are wide enough to read; past this many cosets we show a prefix and say so. */
 const MAX_BLOCKS = 12
 
 interface Props {
   g: Group
-  /** the selected subgroup, or undefined when none is picked */
   H?: number[]
   cs: { rep: number; elems: number[] }[]
   side: 'left' | 'right'
@@ -19,62 +19,66 @@ interface Props {
 }
 
 /**
- * Herstein 2.6, "memadatkan G": each coset of H is one block of G on the left and collapses to
- * a single point of G/H on the right, under the natural map ψ(a) = Ha. The block colours are the
- * ones the Cayley table is painted with, so a colour means the same coset in both views.
+ * Herstein 2.6, "memadatkan G": every coset of N is one bag of G and collapses to one point of
+ * G/N under ψ(a) = Na; when N is normal the points multiply as a group, shown in its own table
+ * with the same colours.
  */
 export function CosetCollapse({ g, H, cs, side, normal }: Props) {
   const t = useT()
+  const title = <>{t('Grup faktor: setiap koset menjadi satu unsur', 'Factor group: every coset becomes one element')}</>
   if (!H) {
     return (
-      <MathCard title={t('Ilustrasi: memadatkan G menjadi G/N', 'Illustration: collapsing G onto G/N')} icon={<Combine size={16} />} className="lg:col-span-3">
-        <p className="text-sm text-slate-500">{t('Pilih subgrup H di panel kanan untuk melihat koset-kosetnya memadat menjadi titik.', 'Pick a subgroup H in the right-hand panel to watch its cosets collapse to points.')}</p>
+      <MathCard title={title} icon={<Combine size={16} />} className="lg:col-span-3">
+        <p className="text-sm text-slate-500">{t('Pilih subgrup H di panel kanan untuk melihat koset-kosetnya dipadatkan menjadi titik.', 'Pick a subgroup H in the right-hand panel to watch its cosets collapse to points.')}</p>
       </MathCard>
     )
   }
-
   const S = normal ? 'N' : 'H'
-  // the coset of the identity is the subgroup itself: write N, not Ne (as the lecture slides do)
-  const name = (rep: number) =>
-    rep === g.e ? S : side === 'right' ? `${S}${labelTex(g.labels[rep])}` : `${labelTex(g.labels[rep])}${S}`
   const shown = cs.slice(0, MAX_BLOCKS)
-  const blocks: Block[] = shown.map((c, i) => ({
-    key: c.rep, tex: name(c.rep), elems: c.elems.map((x) => g.labels[x]),
-    hue: HUES(cs.length, i), tint: TINT(cs.length, i),
-  }))
-  const targets: Target[] = shown.map((c, i) => ({
-    key: c.rep, tex: name(c.rep), hue: HUES(cs.length, i), tint: TINT(cs.length, i),
-  }))
+  const blocks: Block[] = shown.map((c, i) => ({ key: c.rep, name: cosetName(g, c.rep, side, S), elems: c.elems.map((x) => compact(g.labels[x])), color: pal(i, cs.length) }))
+  const targets: Target[] = shown.map((c, i) => ({ key: c.rep, name: cosetName(g, c.rep, side, S), color: pal(i, cs.length) }))
+  const Q = normal && H.length < g.order ? quotient(g, H) : null
+  // quotient() lists cosets in the same order as cosets(g, H, 'left'), which equals cs when N is normal
+  const qName = (i: number) => cosetName(g, cs[i]?.rep ?? 0, side, S)
 
   return (
-    <MathCard
-      title={<>{t('Ilustrasi: memadatkan G menjadi ', 'Illustration: collapsing G onto ')}<Tex tex={`G/${S}`} /></>}
-      icon={<Combine size={16} />}
-      className="lg:col-span-3"
-    >
-      <p className="mb-3 text-xs leading-relaxed text-slate-400">
-        {t(<>Setiap koset — satu blok warna di kiri — menjadi satu titik tunggal di <Tex tex={`G/${S}`} />. Warnanya sama dengan warna pada tabel Cayley di atas.</>,
-           <>Every coset — one coloured block on the left — becomes a single point of <Tex tex={`G/${S}`} />. The colours are the ones the Cayley table above is painted with.</>)}
-      </p>
-
-      <CollapseDiagram
-        blocks={blocks}
-        targets={targets}
-        leftTex="G"
-        rightTex={`G/${S}`}
-        mapTex={`a \\longmapsto ${side === 'right' ? `${S}a` : `a${S}`}`}
-        note={cs.length > MAX_BLOCKS
-          ? t(`${MAX_BLOCKS} dari ${cs.length} koset; masing-masing berukuran ${H.length}.`, `${MAX_BLOCKS} of ${cs.length} cosets; each of size ${H.length}.`)
-          : t(`${cs.length} koset, masing-masing berukuran ${H.length} (Lagrange).`, `${cs.length} cosets, each of size ${H.length} (Lagrange).`)}
-      />
-
-      <p className={cn('mt-3 text-xs leading-relaxed', normal ? 'text-slate-400' : 'text-rose-300')}>
-        {normal
-          ? t(<>Karena <Tex tex="N \lhd G" />, hasil kali koset <Tex tex="(Na)(Nb) = N(ab)" /> tidak bergantung pada wakil yang dipilih, sehingga titik-titik di kanan benar-benar membentuk grup — lihat tabel <Tex tex="G/N" /> di bawah. Pemetaan <Tex tex="\psi(a) = Na" /> adalah homomorfisma pada dengan <Tex tex="\ker\psi = N" />.</>,
-             <>Because <Tex tex="N \lhd G" />, the coset product <Tex tex="(Na)(Nb) = N(ab)" /> does not depend on the representatives chosen, so the points on the right really do form a group — see the <Tex tex="G/N" /> table below. The map <Tex tex="\psi(a) = Na" /> is an onto homomorphism with <Tex tex="\ker\psi = N" />.</>)
-          : t(<>H tidak normal: koset-kosetnya tetap mempartisi G (Lagrange berlaku untuk setiap subgrup), tetapi titik-titik di kanan hanya sebuah himpunan. Hasil kali <Tex tex="(Ha)(Hb) = H(ab)" /> bergantung pada wakil yang dipilih, jadi <Tex tex="G/H" /> bukan grup.</>,
-             <>H is not normal: its cosets still partition G (Lagrange holds for every subgroup), but the points on the right are only a set. The product <Tex tex="(Ha)(Hb) = H(ab)" /> depends on the representatives chosen, so <Tex tex="G/H" /> is not a group.</>)}
-      </p>
+    <MathCard title={title} icon={<Combine size={16} />} className="lg:col-span-3">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <div className="min-w-0 space-y-2">
+          <CollapseDiagram blocks={blocks} targets={targets} leftName="G" label={t('Koset G dipadatkan menjadi titik', 'Cosets of G collapsing to points')} />
+          <p className="text-[13px] leading-relaxed text-slate-300">
+            {t(`Atas: G terbagi menjadi ${cs.length} kantong, masing-masing berisi ${H.length} unsur. Bawah: setiap kantong menjadi satu titik, lewat peta a ↦ ${side === 'right' && !additive(g.id) ? `${S}a` : additive(g.id) ? `a+${S}` : `a${S}`}.`,
+               `Top: G splits into ${cs.length} bags of ${H.length} elements each. Bottom: every bag becomes one point, via the map a ↦ ${side === 'right' && !additive(g.id) ? `${S}a` : additive(g.id) ? `a+${S}` : `a${S}`}.`)}
+            {cs.length > MAX_BLOCKS && t(` Ditampilkan ${MAX_BLOCKS} dari ${cs.length} koset.`, ` Showing ${MAX_BLOCKS} of ${cs.length} cosets.`)}
+          </p>
+        </div>
+        <div className="min-w-0 space-y-2">
+          {Q ? (
+            <>
+              <TablePic
+                heads={range(Q.order).map(qName)}
+                text={(r, c) => qName(mul(Q, r, c))}
+                tone={(r, c) => pal(mul(Q, r, c), cs.length)}
+                sym={additive(g.id) ? '+' : '·'}
+                title={`G/N, |G/N| = ${Q.order}`}
+                label={t('Tabel grup faktor G/N', 'Table of the factor group G/N')}
+              />
+              <p className="text-[13px] leading-relaxed text-slate-300">
+                {t(<>Kalikan kantong dengan mengambil wakil mana saja: <Tex tex="(Na)(Nb) = N(ab)" />. Hasilnya tidak bergantung pada wakil karena N normal. Warnanya sama dengan warna kantong. </>,
+                   <>Multiply bags by picking any representatives: <Tex tex="(Na)(Nb) = N(ab)" />. The answer does not depend on the representatives because N is normal. The colours match the bags. </>)}
+                {isAbelian(Q) ? t('G/N abelian.', 'G/N is abelian.') : t('G/N tak-abelian.', 'G/N is non-abelian.')}
+              </p>
+            </>
+          ) : normal ? (
+            <p className="text-[13px] text-slate-400">{t('N = G atau N = {e}: grup faktornya trivial atau sama dengan G. Pilih subgrup normal sejati.', 'N = G or N = {e}: the factor group is trivial or G itself. Pick a proper normal subgroup.')}</p>
+          ) : (
+            <p className="text-[13px] leading-relaxed text-rose-300">
+              {t(<>H tidak normal: kantong-kantongnya tetap mempartisi G (Lagrange berlaku untuk setiap subgrup), tetapi <Tex tex="(Ha)(Hb) = H(ab)" /> bergantung pada wakil yang dipilih. Jadi titik-titik di bawah hanya himpunan, bukan grup.</>,
+                 <>H is not normal: its bags still partition G (Lagrange holds for every subgroup), but <Tex tex="(Ha)(Hb) = H(ab)" /> depends on the representatives. So the points below are only a set, not a group.</>)}
+            </p>
+          )}
+        </div>
+      </div>
     </MathCard>
   )
 }

@@ -103,3 +103,46 @@ import { permutationGroupFrom } from '../src/lib/group-theory'
   assert(permutationGroupFrom('(1 2 3), (1 2)').order === 6, 'custom ⟨(123),(12)⟩ = S3')
 }
 console.log(process.exitCode ? 'FAILED' : 'user-input checks passed')
+
+// ---------- isomorphism checker ----------
+import { parseGroup, alternating } from '../src/lib/group-theory'
+import { parseRing, ringIsomorphism, ringInvariants, ringZn, ringProduct } from '../src/lib/finite-ring'
+import { pExtGcd, pDivSteps, pAdd, pMul as pM } from '../src/lib/rings'
+{
+  const iso = (a: string, b: string) => isomorphism(parseGroup(a), parseGroup(b))
+  const yes = (a: string, b: string) => {
+    const r = iso(a, b), G = parseGroup(a), H = parseGroup(b)
+    assert(r.isomorphic && !!r.map, `${a} ≅ ${b}`)
+    // the map must be a bijective homomorphism
+    if (r.map) for (let x = 0; x < G.order; x++) for (let y = 0; y < G.order; y++) assert(r.map[G.table[x][y]] === H.table[r.map[x]][r.map[y]], `${a} → ${b} not a homomorphism`)
+    assert(new Set(r.map).size === G.order, `${a} → ${b} not bijective`)
+  }
+  const no = (a: string, b: string, reason: string) => { const r = iso(a, b); assert(!r.isomorphic && r.reason === reason, `${a} ≇ ${b} by ${reason} (got ${r.reason})`) }
+  yes('Z6', 'Z2xZ3'); yes('U8', 'Z2×Z2'); yes('S3', 'D3'); yes('U10', 'Z4'); yes('(1 2 3 4), (1 3)', 'D4'); yes('Z2xZ2xZ2', 'U24'); yes('U15', 'Z2xZ4')
+  no('Z4', 'Z2xZ2', 'cyclic'); no('S3', 'Z6', 'abelian'); no('D4', 'Q8', 'profile'); no('A4', 'D6', 'center'); no('Z6', 'S4', 'order'); no('Z2xZ4', 'Z8', 'cyclic')
+  assert(parseGroup('A4').order === 12 && alternating(4).order === 12 && parseGroup('Z₁₂').order === 12 && parseGroup('⟨(1 2 3), (1 2)⟩').order === 6 && parseGroup('U(8)').order === 4, 'parseGroup forms')
+  let bad = 0; for (const s of ['', 'S9', 'Z', 'foo', '(1 2']) { try { parseGroup(s) } catch { bad++ } }
+  assert(bad === 5, `parseGroup rejects bad input (${bad}/5)`)
+
+  const ryes = (a: string, b: string) => {
+    const R = parseRing(a), S = parseRing(b), r = ringIsomorphism(R, S)
+    assert(r.isomorphic && !!r.map, `ring ${a} ≅ ${b}`)
+    if (r.map) for (let x = 0; x < R.labels.length; x++) for (let y = 0; y < R.labels.length; y++) assert(r.map[R.add[x][y]] === S.add[r.map[x]][r.map[y]] && r.map[R.mul[x][y]] === S.mul[r.map[x]][r.map[y]], `ring ${a} → ${b} not a homomorphism`)
+  }
+  const rno = (a: string, b: string, reason: string) => { const r = ringIsomorphism(parseRing(a), parseRing(b)); assert(!r.isomorphic && r.reason === reason, `ring ${a} ≇ ${b} by ${reason} (got ${r.reason})`) }
+  ryes('Z6', 'Z2xZ3'); ryes('Z10', 'Z5×Z2'); ryes('Z2[x]/(x^2+x)', 'Z2xZ2'); ryes('Z3[x]/(x^2+1)', 'Z3[x]/(x^2+x+2)'); ryes('Z2[x]/(x^3+x+1)', 'Z2[x]/(x^3+x^2+1)')
+  rno('Z4', 'Z2xZ2', 'char'); rno('Z12', 'Z2xZ6', 'char'); rno('Z2[x]/(x^2+x+1)', 'Z2xZ2', 'units'); rno('Z2[x]/(x^2)', 'Z2xZ2', 'units'); rno('Z9', 'Z3[x]/(x^2+1)', 'char')
+  const F4 = ringInvariants(parseRing('F2[x]/(x^2+x+1)'))
+  assert(F4.order === 4 && F4.field && F4.char === 2 && F4.units.length === 3, 'F2[x]/(x²+x+1) is a field of 4 elements')
+  assert(!ringInvariants(parseRing('Z2[x]/(x^2+1)')).field && ringInvariants(parseRing('Z2[x]/(x^2+1)')).nilpotents.length === 2, 'Z2[x]/(x²+1) has a nilpotent x+1')
+  assert(ringInvariants(ringProduct(ringZn(2), ringZn(3))).units.length === 2 && ringInvariants(ringZn(12)).zeroDivisors.length === 7, 'units / zero divisors')
+
+  // Bézout over Q and Z_p; long-division rows end in the remainder
+  for (const [F, a, b] of [[{ kind: 'Q' as const }, 'x^4 - 1', 'x^3 + x^2 + x + 1'], [{ kind: 'Zp' as const, p: 5 }, 'x^4 + 3x^2 + 2', 'x^2 + 1'], [{ kind: 'Zp' as const, p: 2 }, 'x^3 + x + 1', 'x^2 + 1']] as const) {
+    const f = parsePoly(a, F)!, g = parsePoly(b, F)!, e = pExtGcd(F, f, g)
+    assert(polyTex(pAdd(F, pM(F, e.s, f), pM(F, e.t, g))) === polyTex(e.g), `Bézout ${a}, ${b}`)
+    const st = pDivSteps(F, f, g)
+    assert(polyTex(st[st.length - 1]?.rem ?? f) === polyTex(pDivMod(F, f, g).r), `division rows ${a} ÷ ${b}`)
+  }
+}
+console.log(process.exitCode ? 'FAILED' : 'isomorphism checks passed')

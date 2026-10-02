@@ -104,6 +104,40 @@ export function pDivMod(f: Field, a: Poly, b: Poly): { q: Poly; r: Poly } {
   return { q: trim(qo), r }
 }
 
+/** The rows of long division, one per quotient term: c·x^s times b is subtracted, leaving `rem`. */
+export function pDivSteps(f: Field, a: Poly, b: Poly): { c: Q; s: number; sub: Poly; rem: Poly }[] {
+  const k = F(f)
+  if (!b.length) throw new Error('division by zero polynomial')
+  const out: { c: Q; s: number; sub: Poly; rem: Poly }[] = []
+  let r = trim(a)
+  const lbInv = k.inv(b[b.length - 1])
+  while (r.length >= b.length && r.length) {
+    const c = k.mul(r[r.length - 1], lbInv), s = r.length - b.length
+    const sub = trim([...range(s).map(() => k.zero), ...b.map((y) => k.mul(c, y))])
+    r = pSub(f, r, sub)
+    out.push({ c, s, sub, rem: r })
+  }
+  return out
+}
+
+/**
+ * Extended Euclid in F[x]: rows a = q·b + r until r = 0, and s, t with s·a + t·b = gcd (monic).
+ */
+export function pExtGcd(f: Field, a: Poly, b: Poly): { rows: { a: Poly; b: Poly; q: Poly; r: Poly }[]; g: Poly; s: Poly; t: Poly } {
+  let r0 = trim(a), r1 = trim(b), s0: Poly = [q(1)], s1: Poly = [], t0: Poly = [], t1: Poly = [q(1)]
+  const rows: { a: Poly; b: Poly; q: Poly; r: Poly }[] = []
+  while (r1.length) {
+    const { q: qq, r } = pDivMod(f, r0, r1)
+    rows.push({ a: r0, b: r1, q: qq, r })
+    ;[r0, r1] = [r1, r]
+    ;[s0, s1] = [s1, pSub(f, s0, pMul(f, qq, s1))]
+    ;[t0, t1] = [t1, pSub(f, t0, pMul(f, qq, t1))]
+  }
+  if (!r0.length) return { rows, g: r0, s: s0, t: t0 }
+  const inv = F(f).inv(r0[r0.length - 1])
+  return { rows, g: pScale(f, r0, inv), s: pScale(f, s0, inv), t: pScale(f, t0, inv) }
+}
+
 export function pGcd(f: Field, a: Poly, b: Poly): Poly {
   let x = trim(a), y = trim(b)
   while (y.length) { const { r } = pDivMod(f, x, y); x = y; y = r }

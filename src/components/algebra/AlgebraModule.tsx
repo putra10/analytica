@@ -5,8 +5,9 @@ import { GroupLab } from './GroupLab'
 import { PermutationLab } from './PermutationLab'
 import { RingLab } from './RingLab'
 import { PolynomialLab } from './PolynomialLab'
+import { IsoLab } from './IsoLab'
 
-type Sub = 'groups' | 'perm' | 'rings' | 'poly'
+type Sub = 'groups' | 'perm' | 'rings' | 'poly' | 'iso'
 
 export function AlgebraModule() {
   const t = useT()
@@ -21,12 +22,14 @@ export function AlgebraModule() {
           { id: 'perm', label: t('Grup Simetri Sₙ', 'Symmetric Group Sₙ') },
           { id: 'rings', label: t('Gelanggang Zₙ & Ideal', 'Rings Zₙ & Ideals') },
           { id: 'poly', label: t('Gelanggang Polinom', 'Polynomial Rings') },
+          { id: 'iso', label: t('Isomorfisma Grup & Gelanggang', 'Group & Ring Isomorphism') },
         ]}
       />
       {sub === 'groups' && <GroupLab />}
       {sub === 'perm' && <PermutationLab />}
       {sub === 'rings' && <RingLab />}
       {sub === 'poly' && <PolynomialLab />}
+      {sub === 'iso' && <IsoLab />}
     </div>
   )
 }

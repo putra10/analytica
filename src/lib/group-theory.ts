@@ -101,13 +101,25 @@ export const orderProfile = (g: Group) => {
   return [...m.entries()].sort((x, y) => x[0] - y[0])
 }
 
+export type IsoReason = 'order' | 'abelian' | 'cyclic' | 'center' | 'profile' | 'search'
+
 export interface IsoResult {
   isomorphic: boolean
-  /** reason when not isomorphic */
-  reason?: 'order' | 'abelian' | 'profile' | 'search'
-  /** map G → H when found */
+  /** the first invariant that differs, or 'search' when all agree but no isomorphism exists */
+  reason?: IsoReason
+  /** map G → H when found: map[a] is the index in H of φ(a) */
   map?: number[]
+  /** the generating set of G whose images pin φ down */
+  gens: number[]
+  /** how many tuples of generator images were tried */
+  tried: number
 }
+
+/** The invariants compared before searching, in the order a student checks them. */
+export function groupInvariants(g: Group) {
+  return { order: g.order, abelian: isAbelian(g), cyclic: isCyclic(g), center: center(g).length, profile: orderProfile(g) }
+}
+const sameProfile = (a: [number, number][], b: [number, number][]) => a.length === b.length && a.every(([o, c], i) => b[i][0] === o && b[i][1] === c)
 
 /** Extend a partial homomorphism from generator images; returns null on inconsistency. */
 export function extendHom(g: Group, h: Group, gens: number[], imgs: number[]): number[] | null {
@@ -129,17 +141,26 @@ export function extendHom(g: Group, h: Group, gens: number[], imgs: number[]): n
   return map
 }
 
-/** Decide G ≅ H (Herstein 2.5): invariants first, then a search over generator images. */
+/**
+ * Decide G ≅ H (Herstein 2.5): compare invariants (order, abelian, cyclic, |Z(G)|, element-order
+ * profile) and, when they all agree, search over images of a small generating set of G with the
+ * same element orders.
+ */
 export function isomorphism(g: Group, h: Group): IsoResult {
-  if (g.order !== h.order) return { isomorphic: false, reason: 'order' }
-  if (isAbelian(g) !== isAbelian(h)) return { isomorphic: false, reason: 'abelian' }
-  const pg = orderProfile(g), ph = orderProfile(h)
-  if (pg.length !== ph.length || pg.some(([o, c], i) => ph[i][0] !== o || ph[i][1] !== c)) return { isomorphic: false, reason: 'profile' }
   const gens = smallGeneratingSet(g)
+  const a = groupInvariants(g), b = groupInvariants(h)
+  const fail = (reason: IsoReason): IsoResult => ({ isomorphic: false, reason, gens, tried: 0 })
+  if (a.order !== b.order) return fail('order')
+  if (a.abelian !== b.abelian) return fail('abelian')
+  if (a.cyclic !== b.cyclic) return fail('cyclic')
+  if (a.center !== b.center) return fail('center')
+  if (!sameProfile(a.profile, b.profile)) return fail('profile')
   const ords = gens.map((x) => elementOrder(g, x))
   const candidates = gens.map((_, i) => range(h.order).filter((y) => elementOrder(h, y) === ords[i]))
+  let tried = 0
   const rec = (i: number, imgs: number[]): number[] | null => {
     if (i === gens.length) {
+      tried++
       const map = extendHom(g, h, gens, imgs)
       return map && new Set(map).size === g.order ? map : null
     }
@@ -147,7 +168,7 @@ export function isomorphism(g: Group, h: Group): IsoResult {
     return null
   }
   const map = rec(0, [])
-  return map ? { isomorphic: true, map } : { isomorphic: false, reason: 'search' }
+  return map ? { isomorphic: true, map, gens, tried } : { isomorphic: false, reason: 'search', gens, tried }
 }
 
 export interface Hom {
@@ -312,3 +333,45 @@ export const GROUP_CATALOG: { id: string; make: () => Group }[] = [
   { id: 'D6', make: () => dihedral(6) },
   { id: 'Q8', make: () => quaternion() },
 ]
+
+/** G × H with the componentwise operation. */
+export function directProduct(g: Group, h: Group): Group {
+  if (g.id.startsWith('Z') && h.id.startsWith('Z') && /^Z\d+$/.test(g.id) && /^Z\d+$/.test(h.id)) return product(g.order, h.order)
+  const labels = range(g.order * h.order).map((i) => `(${g.labels[Math.floor(i / h.order)]},${h.labels[i % h.order]})`)
+  const table = range(g.order * h.order).map((i) => range(g.order * h.order).map((j) =>
+    mul(g, Math.floor(i / h.order), Math.floor(j / h.order)) * h.order + mul(h, i % h.order, j % h.order)))
+  return build(`${g.id}x${h.id}`, `${g.name}×${h.name}`, `${g.tex}\times ${h.tex}`, labels, table,
+    { id: 'Hasil kali langsung: operasi komponen demi komponen.', en: 'Direct product with the componentwise operation.' })
+}
+
+/**
+ * Parse a typed group: Z6, Z_6, U8, U(8), S3, A4, D4, Q8, products like Z2xZ3 or Z2×Z2×Z2, or
+ * permutation generators "(1 2 3), (1 2)" (optionally inside ⟨ ⟩ or < >). Throws with a short
+ * English reason on bad input; the UI shows its own bilingual message.
+ */
+export function parseGroup(text: string, maxOrder = 120): Group {
+  const s0 = text.trim().replace(/[₀-₉]/g, (d) => String('₀₁₂₃₄₅₆₇₈₉'.indexOf(d)))
+  if (!s0) throw new Error('empty')
+  if (s0.includes('(') && !/^[UZ]_?\(/i.test(s0)) {
+    const g = permutationGroupFrom(s0.replace(/^[⟨<]\s*|\s*[⟩>]$/g, ''), maxOrder)
+    return g
+  }
+  const factors = s0.replace(/\s+/g, '').split(/[x×*]/i).filter(Boolean)
+  if (factors.length > 1) {
+    const gs = factors.map((f) => parseGroup(f, maxOrder))
+    if (gs.reduce((n, g) => n * g.order, 1) > maxOrder) throw new Error('too large')
+    return gs.reduce((a, b) => directProduct(a, b))
+  }
+  const m = factors[0]?.match(/^([ZUSADQ])_?\(?(\d+)\)?$/i)
+  if (!m) throw new Error('not recognised')
+  const kind = m[1].toUpperCase(), n = +m[2]
+  const g = kind === 'Z' && n >= 1 && n <= maxOrder ? cyclic(n)
+    : kind === 'U' && n >= 2 && n <= 200 ? units(n)
+    : kind === 'S' && n >= 1 && n <= 5 ? symmetric(n)
+    : kind === 'A' && n >= 2 && n <= 5 ? alternating(n)
+    : kind === 'D' && n >= 3 && 2 * n <= maxOrder ? dihedral(n)
+    : kind === 'Q' && n === 8 ? quaternion()
+    : null
+  if (!g) throw new Error('out of range')
+  return g
+}
