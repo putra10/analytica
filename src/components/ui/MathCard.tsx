@@ -37,7 +37,8 @@ export function Chip({
       disabled={disabled}
       aria-pressed={active}
       className={cn(
-        'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-40',
+        // *:text-inherit: inline <Tex> forces the foreground colour, which vanishes on the active (foreground-filled) chip
+        'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-40 *:text-inherit',
         active
           ? 'border-slate-100 bg-slate-100 text-accent-ink'
           : 'border-border bg-card text-slate-300 hover:border-slate-700 hover:text-slate-100',
