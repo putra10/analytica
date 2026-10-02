@@ -44,3 +44,20 @@
 .studio-note { color:var(--muted); font-size:11px; line-height:1.8; margin-top:14px; max-width:100ch; }
 @media(max-width:900px) { .studio-workspace { grid-template-columns:270px minmax(0,1fr); }.studio-help { grid-template-columns:1fr 1fr; } }
 @media(max-width:640px) { .studio-heading { align-items:flex-start; }.studio-heading p { font-size:12px; }.studio-mode button { padding:7px 10px; }.studio-toolbar { gap:5px; }.studio-toolbar button { font-size:11px; padding:7px 9px; }.studio-spacer { display:none; }.studio-workspace { display:flex; flex-direction:column; }.studio-stage { order:-1; }.studio-viewport { height:360px; flex:none; }.studio-svg { min-height:360px; }.studio-rows { height:300px; }.studio-help { grid-template-columns:1fr; gap:16px; padding:16px; }.studio-stage-bottom { font-size:9px; padding:10px; } }
+.studio select { border:1px solid var(--border-strong); border-radius:7px; padding:7px 8px; font-size:12px; color:var(--fg); background:var(--surface); max-width:100%; min-width:0; cursor:pointer; }
+.studio select:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.studio-steps { margin-top:4px; min-width:0; }
+.studio-steps summary { cursor:pointer; display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--accent); list-style:none; padding:2px 0; }
+.studio-steps summary::-webkit-details-marker { display:none; }
+.studio-steps summary::before { content:'▸'; display:inline-block; transition:transform .15s ease; }
+.studio-steps[open] summary::before { transform:rotate(90deg); }
+.studio-steps summary span { color:var(--muted); font-weight:400; }
+.studio-steps summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+.studio-steps ol { list-style:none; margin:6px 0 2px; padding:10px 10px 2px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; counter-reset:step; }
+.studio-steps li { counter-increment:step; margin-bottom:10px; min-width:0; }
+.studio-steps li p { font-size:12px; line-height:1.55; color:var(--fg-2); }
+.studio-steps li p::before { content:counter(step) '. '; color:var(--muted); font-family:var(--font-mono); font-size:11px; }
+.studio-steps .katex { font-size:1em; }
+.studio-steps .katex-display { margin:4px 0; text-align:left; }
+.studio-steps .katex-display > .katex { text-align:left; }
+@media(min-width:1100px) { .studio-workspace { grid-template-columns:380px minmax(0,1fr); } }

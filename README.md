@@ -4,9 +4,9 @@ Laboratorium visual (client-side, tanpa server) untuk tiga mata kuliah Departeme
 
 | Modul | Rujukan | Sub-tab |
 |---|---|---|
-| Fungsi Kompleks | Brown & Churchill, *Complex Variables and Applications* | Pemetaan & fungsi analitik (pewarnaan domain, kisi konformal, uji Cauchy-Riemann); Singularitas, residu & integral kontur (klasifikasi titik singular, teorema residu diverifikasi numerik) |
-| Geometri Analitik | Vaisman, *Analytical Geometry* | Garis & bidang di R³; Lingkaran (kuasa titik, garis kutub, sumbu radikal, pensil); Konik umum & klasifikasi (Teorema 3.4.5); Kuadrik & irisan bidang (reduksi ke bentuk kanonik, 17 kelas Teorema 3.4.6); Transformasi afin & ortogonal |
-| Aljabar | Herstein, *Abstract Algebra* | Grup (tabel Cayley, subgrup, koset, Lagrange, subgrup normal, grup faktor, isomorfisma, homomorfisma); Grup simetri Sₙ (dekomposisi siklus, paritas, hasil kali); Gelanggang Zₙ & ideal; Gelanggang polinom (algoritma pembagian, gcd, ketertereduksian, Z_p[x]/(f)) |
+| Fungsi Kompleks | Brown & Churchill, *Complex Variables and Applications* | Pemetaan & fungsi analitik (pewarnaan domain, kisi konformal, uji Cauchy-Riemann); Singularitas, residu & integral kontur (klasifikasi titik singular, teorema residu diverifikasi numerik); Studio Fungsi Kompleks (`#/studio/complex`): bentuk kutub, akar, Log dan cabang, uji Cauchy-Riemann, konjugat harmonik, limit, integral kontur, taksiran ML, rumus Cauchy, deret Taylor/Laurent, residu, dengan langkah pengerjaan |
+| Geometri Analitik | Vaisman, *Analytical Geometry* | Studio Geometri (`#/studio/geometry`): titik, garis, bidang, lingkaran dan bola dari persamaan umum, kuasa titik, garis kutub, sumbu radikal, pensil, klasifikasi konik dan kuadrik (δ, Δ, bentuk kanonik), transformasi afin dan ortogonal; setiap hasil disertai langkah pengerjaan |
+| Aljabar | Herstein, *Abstract Algebra* | Grup (tabel Cayley, subgrup, koset, Lagrange, subgrup normal, grup faktor, isomorfisma, homomorfisma); Grup simetri Sₙ (dekomposisi siklus, paritas, hasil kali); Gelanggang Zₙ & ideal; Gelanggang polinom (algoritma pembagian, gcd, ketertereduksian, Z_p[x]/(f)); Isomorfisma grup dan gelanggang (uji invarian dan peta eksplisit) |
 
 Teks teori tersedia dalam Bahasa Indonesia dan Inggris (saklar ID/EN di kanan atas), tema terang/gelap (ikon di kanan atas, mengikuti preferensi OS).
 
@@ -24,4 +24,4 @@ npm run build   # keluaran statis di dist/
 
 ## Deploy (Vercel Hobby)
 
-Import repo ini, preset **Vite** (root repo = proyek). Keluaran `dist/`. Tidak ada variabel lingkungan. Halaman: `#/` beranda, `#/app/<modul>` laboratorium, `#/summary` ringkasan rumus, `#/about` penjelasan.
+Import repo ini, preset **Vite** (root repo = proyek). Keluaran `dist/`. Tidak ada variabel lingkungan. Halaman: `#/` beranda, `#/app/<modul>` laboratorium (kompleks, aljabar), `#/studio/<geometry|complex>` studio, `#/summary` ringkasan rumus, `#/about` penjelasan.

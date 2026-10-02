@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "check": "tsx scripts/selfcheck.ts && tsx scripts/studio-check.ts"
+    "check": "tsx scripts/selfcheck.ts && tsx scripts/studio-check.ts && tsx scripts/complex-studio-check.ts"
   },
   "dependencies": {
     "@radix-ui/react-slider": "^1.4.7",

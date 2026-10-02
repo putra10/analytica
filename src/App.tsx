@@ -4,25 +4,21 @@ import { href, navigate, useRoute } from './lib/router'
 import { cn } from './lib/utils'
 import { TabNav, LangToggle, ThemeToggle, TABS, type TabId } from './components/navigation/TabNav'
 import { ComplexModule } from './components/complex/ComplexModule'
-import { GeometryModule } from './components/geometry/GeometryModule'
 import { AlgebraModule } from './components/algebra/AlgebraModule'
 import { Landing } from './pages/Landing'
 import { Summary } from './pages/Summary'
 import { About } from './pages/About'
 import { GeometryStudio } from './pages/GeometryStudio'
+import { ComplexStudio } from './pages/ComplexStudio'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 
-const MODULES: Record<TabId, () => React.JSX.Element> = { complex: ComplexModule, geometry: GeometryModule, algebra: AlgebraModule }
+const MODULES: Partial<Record<TabId, () => React.JSX.Element>> = { complex: ComplexModule, algebra: AlgebraModule }
 
-const INTRO: Record<TabId, { id: [string, string]; en: [string, string] }> = {
+const INTRO: Partial<Record<TabId, { id: [string, string]; en: [string, string] }>> = {
   complex: {
     id: ['Lihat fungsi kompleks bekerja.', 'Pemetaan w = f(z), pewarnaan domain, uji Cauchy-Riemann, dan teorema residu yang diverifikasi secara numerik. Ketik fungsi Anda sendiri.'],
     en: ['Watch complex functions work.', 'Mappings w = f(z), domain colouring, Cauchy-Riemann checks and the residue theorem verified numerically. Type your own function.'],
-  },
-  geometry: {
-    id: ['Geometri linear dan kuadratik di R² dan R³.', 'Garis, bidang, lingkaran, konik dan kuadrik umum dengan reduksi ke bentuk kanonik ala Vaisman. Tempel persamaan dari soal.'],
-    en: ['Linear and quadratic geometry in R² and R³.', 'Lines, planes, circles, general conics and quadrics reduced to canonical form the Vaisman way. Paste an equation from a problem.'],
   },
   algebra: {
     id: ['Struktur grup dan gelanggang, dihitung langsung.', 'Tabel Cayley, koset, grup faktor, isomorfisma, permutasi, ideal dan polinom mengikuti Herstein.'],
@@ -32,9 +28,9 @@ const INTRO: Record<TabId, { id: [string, string]; en: [string, string] }> = {
 
 function Workbench({ tab }: { tab: TabId }) {
   const t = useT()
-  const Module = MODULES[tab]
+  const Module = MODULES[tab]!
   const meta = TABS.find((x) => x.id === tab)!
-  const intro = INTRO[tab]
+  const intro = INTRO[tab]!
   return (
     <div className="space-y-5">
       <TabNav active={tab} onChange={(id) => navigate({ page: 'app', tab: id })} />
@@ -50,6 +46,18 @@ function Workbench({ tab }: { tab: TabId }) {
       </AnimatePresence>
     </div>
   )
+}
+
+/** Studio = type objects from a problem and get answers with working; one per course that needs it. */
+function StudioPage({ tab }: { tab: 'geometry' | 'complex' }) {
+  const t = useT()
+  return <div className="space-y-4">
+    <nav aria-label={t('Pilih studio', 'Choose a studio')} className="flex flex-wrap gap-2 pt-2">
+      {([['geometry', t('Geometri Analitik', 'Analytic Geometry')], ['complex', t('Fungsi Kompleks', 'Complex Functions')]] as const).map(([id, label]) =>
+        <a key={id} href={href({ page: 'studio', tab: id })} aria-current={tab === id ? 'page' : undefined} className={cn('rounded-full border px-4 py-2 text-sm no-underline', tab === id ? 'border-accent bg-accent-soft text-accent' : 'border-border text-slate-300 hover:border-accent')}>{label}</a>)}
+    </nav>
+    {tab === 'complex' ? <ComplexStudio /> : <GeometryStudio />}
+  </div>
 }
 
 function Shell() {
@@ -88,7 +96,7 @@ function Shell() {
 
       <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
         {route.page === 'home' && <Landing />}
-        {route.page === 'studio' && <GeometryStudio />}
+        {route.page === 'studio' && <StudioPage tab={route.tab === 'complex' ? 'complex' : 'geometry'} />}
         {route.page === 'app' && <Workbench tab={tab} />}
         {route.page === 'summary' && <Summary section={route.section} />}
         {route.page === 'about' && <About />}
