@@ -8,6 +8,8 @@ export type Frame = { caption: Bilingual; tex?: string | Bilingual }
 export type Story = {
   title: Bilingual
   frames: Frame[]
+  /** Allow learners to enlarge detailed lecture diagrams. */
+  zoomable?: boolean
   control?: { label: Bilingual; min: number; max: number; step: number; initial: number }
   /** first frame at which the slider and readout apply (default 0) */
   controlFrom?: number

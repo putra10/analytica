@@ -4,7 +4,7 @@ export type Route = { page: 'home' } | { page: 'studio'; tab?: string } | { page
 
 /** #/, #/app/complex, #/summary/geometry, #/about */
 export function parseRoute(hash: string): Route {
-  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean)
+  const parts = hash.split('?')[0].replace(/^#\/?/, '').split('/').filter(Boolean)
   switch (parts[0]) {
     case 'studio': return { page: 'studio', tab: parts[1] }
     // the geometry labs moved into Studio; keep old links working

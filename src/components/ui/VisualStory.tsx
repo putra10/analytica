@@ -1,3 +1,11 @@
+import { COMPLEX_FOUNDATIONS_STORIES } from '../stories/complex-foundations-stories'
+import { COMPLEX_CALCULUS_STORIES } from '../stories/complex-calculus-stories'
+import { COMPLEX_SERIES_STORIES } from '../stories/complex-series-stories'
+import { FOUNDATIONS_STORIES } from '../stories/geometry-foundations-stories'
+import { METRIC_STORIES } from '../stories/geometry-metric-stories'
+import { CLASSIFICATION_STORIES } from '../stories/geometry-classification-stories'
+import { ALGEBRA_SLIDE_STORIES } from '../stories/algebra-slides'
+import { DiagramViewport } from './DiagramViewport'
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { VisualKind } from '../../content/summary-lessons'
@@ -16,7 +24,7 @@ import { CONCEPTS as AB } from '../stories/concepts/algebraB'
 import { FormulaBlock } from './FormulaBlock'
 import { cn } from '../../lib/utils'
 
-export const STORIES: Partial<Record<VisualKind, Story>> = { ...COMPLEX_STORIES, ...COMPLEX2_STORIES, ...GEOMETRY_STORIES, ...GEOMETRY2_STORIES, ...ALGEBRA_STORIES }
+export const STORIES: Partial<Record<VisualKind, Story>> = { ...COMPLEX_STORIES, ...COMPLEX2_STORIES, ...GEOMETRY_STORIES, ...GEOMETRY2_STORIES, ...ALGEBRA_STORIES, ...ALGEBRA_SLIDE_STORIES, ...COMPLEX_FOUNDATIONS_STORIES, ...COMPLEX_CALCULUS_STORIES, ...COMPLEX_SERIES_STORIES, ...FOUNDATIONS_STORIES, ...METRIC_STORIES, ...CLASSIFICATION_STORIES }
 /** Stories for the extra concept views, keyed "<kind>:<index>" into [...SUMMARY_CONCEPTS[kind], ...VISUAL_THEOREMS[kind]]. */
 export const CONCEPT_STORIES: Record<string, Story> = { ...CA, ...CB, ...GA, ...GB, ...AA, ...AB }
 
@@ -50,7 +58,7 @@ export function StoryPlayer({ story, lang }: { story: Story; lang: Lang }) {
     </div>
     <div className="grid min-w-0 gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-center">
       <div className="min-w-0">
-        <Scene story={story} frame={frame} value={value} lang={lang} />
+        {story.zoomable ? <DiagramViewport lang={lang}><Scene story={story} frame={frame} value={value} lang={lang} /></DiagramViewport> : <Scene story={story} frame={frame} value={value} lang={lang} />}
         {story.control && live && <label className="mt-3 block rounded-lg border border-accent/50 bg-slate-900 p-3 text-xs text-slate-300">
           <span className="flex justify-between gap-2"><span>{story.control.label[lang]}</span><output className="font-mono text-accent">{value}</output></span>
           <input type="range" aria-label={story.control.label[lang]} min={story.control.min} max={story.control.max} step={story.control.step} value={value} onChange={e => setValue(Number(e.target.value))} className="mt-2 w-full accent-[var(--accent)]" />

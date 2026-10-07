@@ -1,3 +1,4 @@
+import { SyllabusWorkbench } from '../ui/SyllabusWorkbench'
 import { useMemo, useRef, useState } from 'react'
 import { C, PRESETS, numericResidue, abs, sub as csub, type Complex, type Contour, type Preset, type Singularity } from '../../lib/complex-math'
 import { compileComplex } from '../../lib/expr'
@@ -20,7 +21,7 @@ function parsePoints(text: string): Complex[] {
 
 export function ComplexModule() {
   const t = useT()
-  const [sub, setSub] = useState<Sub>('mapping')
+  const [sub, setSub] = useState<Sub>(()=>{const lab=new URLSearchParams(location.hash.split('?')[1]??'').get('lab');return ['mapping','map','sing'].includes(lab??'')?lab as Sub:'mapping'})
   const [preset, setPreset] = useState(0)
   const [c, setC] = useState<Complex>(C(-0.4, 0.6))
   const [mode, setMode] = useState<'color' | 'grid'>('color')
@@ -79,6 +80,7 @@ export function ComplexModule() {
 
   return (
     <div className="space-y-4">
+      <SyllabusWorkbench course="complex" onLab={lab=>{if(['mapping','map','sing'].includes(lab))switchSub(lab as Sub)}} />
       <SubTabs
         active={sub}
         onChange={switchSub}

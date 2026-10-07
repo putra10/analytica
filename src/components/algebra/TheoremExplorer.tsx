@@ -42,8 +42,8 @@ function Lattice({ side, selected, onSelect, lang }: { side: 'original' | 'quoti
   </figure>
 }
 
-export function TheoremExplorer({ lang }: { lang: Lang }) {
-  const [theorem,setTheorem]=useState<Theorem>('correspondence')
+export function TheoremExplorer({ lang, initialTheorem = 'correspondence' }: { lang: Lang; initialTheorem?: Theorem }) {
+  const [theorem,setTheorem]=useState<Theorem>(initialTheorem)
   const [selected,setSelected]=useState(2)
   const [phase,setPhase]=useState(0)
   const [representative,setRepresentative]=useState(2)

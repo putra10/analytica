@@ -1,3 +1,6 @@
+import { COMPLEX_DEFINITIONS } from './complex-course-topics'
+import { GEOMETRY_DEFINITIONS } from './geometry-slide-topics'
+import { SLIDE_DEFINITIONS } from './algebra-slide-topics'
 import type { Bilingual } from './summary-examples'
 import type { VisualKind } from './summary-lessons'
 
@@ -6,6 +9,9 @@ const b=(id:string,en:string):Bilingual=>({id,en})
 const d=(nameId:string,nameEn:string,id:string,en:string,tex:string,pictureId:string,pictureEn:string):Definition=>({name:b(nameId,nameEn),text:b(id,en),tex,picture:b(pictureId,pictureEn)})
 
 export const SUMMARY_DEFINITIONS: Record<VisualKind,Definition> = {
+  ...COMPLEX_DEFINITIONS,
+  ...GEOMETRY_DEFINITIONS,
+  ...SLIDE_DEFINITIONS,
   triangle:d('Modulus dan konjugat','Modulus and conjugate','Modulus adalah jarak titik kompleks dari nol. Konjugat mencerminkan titik terhadap sumbu real: koordinat x tetap dan y membalik tanda.','The modulus is the complex point’s distance from zero. The conjugate reflects the point across the real axis: x stays fixed and y changes sign.',String.raw`z=x+iy,\quad |z|=\sqrt{x^2+y^2},\quad\bar z=x-iy`,'Lihat sisi mendatar x, sisi tegak y, dan garis miring dari nol ke z. Titik cermin berada di bawah sumbu real.','Find horizontal x, vertical y, and the diagonal from zero to z. The reflected point lies below the real axis.'),
   polar:d('Argumen dan bentuk kutub','Argument and polar form','Bentuk kutub membaca titik lewat jarak r dan sudut θ terhadap sumbu real positif. Argumen mempunyai banyak nilai karena satu putaran penuh kembali ke arah sama.','Polar form reads a point by distance r and angle θ from the positive real axis. The argument has multiple values because a full turn returns to the same direction.',String.raw`z=re^{i\theta},\quad r=|z|,\quad \arg z=\theta+2\pi k`,'Panah ungu menunjuk masukan; panah merah menunjukkan arah setelah pangkat empat. Ubah sudut dan perhatikan arah baru.','The violet arrow points to the input; the red arrow gives the direction after the fourth power. Change the angle and watch the new direction.'),
   roots:d('Akar pangkat n','Nth roots','Akar pangkat n dari z₀ adalah semua w yang menghasilkan z₀ setelah dipangkatkan n. Untuk z₀ ≠ 0, semua akar terletak pada satu lingkaran dengan sudut berjarak sama.','The nth roots of z₀ are all w whose nth power is z₀. For nonzero z₀, the roots lie on one circle with equally spaced angles.',String.raw`w^n=z_0`,'Gambar memakai target z₀ = 1. Setiap titik bernomor adalah satu akar. Ubah n untuk melihat jumlah dan sela sudutnya.','The picture uses target z₀ = 1. Each numbered point is one root. Change n to see the root count and angular spacing.'),

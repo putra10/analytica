@@ -1,3 +1,4 @@
+import { SyllabusWorkbench } from '../ui/SyllabusWorkbench'
 import { useState } from 'react'
 import { useT } from '../../lib/i18n'
 import { SubTabs } from '../navigation/TabNav'
@@ -11,9 +12,10 @@ type Sub = 'groups' | 'perm' | 'rings' | 'poly' | 'iso'
 
 export function AlgebraModule() {
   const t = useT()
-  const [sub, setSub] = useState<Sub>('groups')
+  const [sub, setSub] = useState<Sub>(()=>{const lab=new URLSearchParams(location.hash.split('?')[1]??'').get('lab');return ['groups','perm','rings','poly','iso'].includes(lab??'')?lab as Sub:'groups'})
   return (
     <div className="space-y-4">
+      <SyllabusWorkbench course="algebra" onLab={lab=>{if(['groups','perm','rings','poly','iso'].includes(lab))setSub(lab as Sub)}} />
       <SubTabs
         active={sub}
         onChange={setSub}

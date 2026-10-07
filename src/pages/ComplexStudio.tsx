@@ -1,3 +1,4 @@
+import { SyllabusWorkbench } from '../components/ui/SyllabusWorkbench'
 import { useEffect, useMemo, useState } from 'react'
 import { useLang, useT } from '../lib/i18n'
 import { calculate, ROW_COLORS, type Bi, type Entry, type Step } from '../lib/complex-studio'
@@ -75,6 +76,8 @@ export function ComplexStudio() {
       <h1 className="font-display mt-2 text-[clamp(30px,4vw,46px)] text-slate-100">{t('Studio Fungsi Kompleks', 'Complex Functions Studio')}</h1>
       <p className="mt-2 max-w-[68ch] text-sm leading-relaxed text-slate-400">{t('Ketik bilangan, fungsi, atau perintah dari soal. Setiap baris dihitung langsung, lengkap dengan langkah pengerjaan. Baris berikutnya boleh memakai nama dari baris sebelumnya.', 'Type a number, function or command from a problem. Each row is computed live, with its working. Later rows can use names defined above.')}</p>
     </header>
+
+    <SyllabusWorkbench course="complex" onLoad={texts=>{setEntries(rows(texts));setFocus(null)}} />
 
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-xs text-slate-400">{t('Muat contoh:', 'Load examples:')}</span>

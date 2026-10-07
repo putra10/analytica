@@ -1,6 +1,9 @@
+import { extendComplex, COMPLEX_LESSONS, type ComplexCourseKind } from './complex-course-topics'
+import { extendGeometry, GEOMETRY_LESSONS, type GeometrySlideKind } from './geometry-slide-topics'
+import { extendAlgebra, SLIDE_LESSONS, type AlgebraSlideKind } from './algebra-slide-topics'
 import type { Bilingual } from './summary-examples'
 
-export type VisualKind = 'triangle' | 'polar' | 'roots' | 'disc' | 'map' | 'derivative' | 'cr' | 'harmonic' | 'exp' | 'branch' | 'trig' | 'integral' | 'primitive' | 'cauchy' | 'series' | 'singularities' | 'residue' | 'basis' | 'products' | 'plane' | 'projection' | 'power' | 'radical' | 'conic' | 'quadric' | 'eigen' | 'reduce' | 'affine' | 'isometry' | 'group' | 'cyclic' | 'cosets' | 'kernel' | 'quotient' | 'cycles' | 'parity' | 'ring' | 'ideal' | 'division' | 'eisenstein'
+export type VisualKind = 'triangle' | 'polar' | 'roots' | 'disc' | 'map' | 'derivative' | 'cr' | 'harmonic' | 'exp' | 'branch' | 'trig' | 'integral' | 'primitive' | 'cauchy' | 'series' | 'singularities' | 'residue' | 'basis' | 'products' | 'plane' | 'projection' | 'power' | 'radical' | 'conic' | 'quadric' | 'eigen' | 'reduce' | 'affine' | 'isometry' | 'group' | 'cyclic' | 'cosets' | 'kernel' | 'quotient' | 'cycles' | 'parity' | 'ring' | 'ideal' | 'division' | 'eisenstein' | AlgebraSlideKind | GeometrySlideKind | ComplexCourseKind
 export type DerivationStep = { title: Bilingual; text: Bilingual; tex: string }
 export type SummaryLesson = {
   visual: VisualKind
@@ -370,3 +373,9 @@ export const SUMMARY_LESSONS: Record<string, SummaryLesson[][]> = {
     ],
   ],
 }
+
+SUMMARY_LESSONS.algebra = extendAlgebra(SUMMARY_LESSONS.algebra, SLIDE_LESSONS)
+
+SUMMARY_LESSONS.geometry = extendGeometry(SUMMARY_LESSONS.geometry, GEOMETRY_LESSONS)
+
+SUMMARY_LESSONS.complex = extendComplex(SUMMARY_LESSONS.complex, COMPLEX_LESSONS)

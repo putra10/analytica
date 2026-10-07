@@ -1,5 +1,9 @@
+import { extendComplex, COMPLEX_ENTRIES, COMPLEX_SECTIONS } from './complex-course-topics'
+import { extendGeometry, GEOMETRY_ENTRIES, GEOMETRY_SECTIONS } from './geometry-slide-topics'
+import { extendAlgebra, SLIDE_ENTRIES } from './algebra-slide-topics'
+
 /**
- * Formula & theory summary for the three courses, in syllabus order, written from the
+ * Formula & theory summary for the three courses, in syllabus order. Algebra also follows the supplied UI lecture slides. Textbook material is written from the
  * course textbooks (theorem / section numbers refer to them):
  *   Brown & Churchill, Complex Variables and Applications, 8th ed. (section numbers §)
  *   Vaisman, Analytical Geometry, 1997 (numbered propositions)
@@ -47,8 +51,8 @@ export const SUMMARY: Section[] = [
               '|z_1 + z_2| \\le |z_1| + |z_2|,\\qquad |z_1 + z_2| \\ge \\big||z_1| - |z_2|\\big|,\\qquad \\operatorname{Re} z \\le |\\operatorname{Re} z| \\le |z|',
             ],
             insight: {
-              id: 'Ketaksamaan segitiga dan bentuk kebalikannya adalah alat untuk menaksir: untuk |z| = R besar, |z³ + 1| ≥ R³ − 1, sehingga penyebut tidak pernah nol.',
-              en: 'The triangle inequality and its reverse form are estimation tools: for large |z| = R, |z³ + 1| ≥ R³ − 1, so a denominator never vanishes.',
+              id: 'Ketaksamaan segitiga dan bentuk kebalikannya adalah alat untuk menaksir: untuk |z| = R besar, |z³ + 1| ≥ R³ − 1, sehingga penyebut tidak nol jika R > 1.',
+              en: 'The triangle inequality and its reverse form are estimation tools: for large |z| = R, |z³ + 1| ≥ R³ − 1, so this denominator is nonzero when R > 1.',
             },
             pitfall: {
               id: 'Tidak ada urutan "<" pada C: z₁ < z₂ tidak bermakna kecuali keduanya real. Yang bisa dibandingkan hanyalah modulusnya.',
@@ -75,12 +79,12 @@ export const SUMMARY: Section[] = [
           {
             title: { id: 'Akar bilangan kompleks (§9-10)', en: 'Roots of complex numbers (§9-10)' },
             intuition: {
-              id: 'Mencari w dengan wⁿ = z₀ berarti mencari r dan θ dengan rⁿ = r₀ dan nθ = θ₀ + 2kπ. Karena sudut hanya ditentukan modulo 2π, ada tepat n jawaban, tersebar merata di lingkaran berjari-jari ⁿ√r₀: titik sudut segi-n beraturan.',
-              en: 'Solving wⁿ = z₀ means finding r and θ with rⁿ = r₀ and nθ = θ₀ + 2kπ. Because angles are only defined modulo 2π there are exactly n answers, evenly spread on the circle of radius ⁿ√r₀: the vertices of a regular n-gon.',
+              id: 'Mencari w dengan wⁿ = z₀ berarti mencari r dan θ dengan rⁿ = r₀ dan nθ = θ₀ + 2kπ. Karena sudut hanya ditentukan modulo 2π, untuk target bukan nol ada tepat n jawaban berbeda, tersebar merata di lingkaran berjari-jari ⁿ√r₀: titik sudut segi-n beraturan.',
+              en: 'Solving wⁿ = z₀ means finding r and θ with rⁿ = r₀ and nθ = θ₀ + 2kπ. Because angles are only defined modulo 2π for a nonzero target there are exactly n distinct answers, evenly spread on the circle of radius ⁿ√r₀: the vertices of a regular n-gon.',
             },
             formulas: [
               'c_k = \\sqrt[n]{r_0}\\,\\exp\\!\\Big[i\\Big(\\frac{\\theta_0}{n} + \\frac{2k\\pi}{n}\\Big)\\Big],\\qquad k = 0, 1, \\dots, n-1',
-              'c_k = c_0\\,\\omega_n^k,\\qquad \\omega_n = e^{2\\pi i/n}\\ \\text{(akar satuan)},\\qquad 1 + \\omega_n + \\cdots + \\omega_n^{n-1} = 0',
+              'c_k = c_0\\,\\omega_n^k,\\qquad \\omega_n = e^{2\\pi i/n}\\ \\text{(akar satuan)},\\qquad 1 + \\omega_n + \\cdots + \\omega_n^{n-1} = 0\\quad(n>1)',
               '(-1)^{1/2} = \\pm i,\\qquad (-8i)^{1/3} = \\sqrt3 - i,\\ 2i,\\ -\\sqrt3 - i',
             ],
             insight: {
@@ -129,8 +133,8 @@ export const SUMMARY: Section[] = [
               en: 'A conformal map (f analytic, f′ ≠ 0) preserves angles: the images of two perpendicular families of lines stay perpendicular. That is what you see in the parabola grid for z².',
             },
             pitfall: {
-              id: 'w = z² memetakan kuadran pertama ke setengah bidang atas secara satu-satu, tetapi seluruh bidang ke bidang secara dua-ke-satu: z dan −z punya bayangan sama.',
-              en: 'w = z² maps the first quadrant one-to-one onto the upper half-plane, but the whole plane two-to-one: z and −z share an image.',
+              id: 'w = z² memetakan kuadran pertama ke setengah bidang atas secara satu-satu, tetapi setiap nilai bukan nol punya dua prabayangan z dan −z; nilai nol hanya punya satu prabayangan.',
+              en: 'w = z² maps the first quadrant one-to-one onto the upper half-plane, but each nonzero output has two preimages z and −z; zero has only one preimage.',
             },
             lab: '#/app/complex',
           },
@@ -142,7 +146,7 @@ export const SUMMARY: Section[] = [
             },
             formulas: [
               "f'(z_0) = \\lim_{\\Delta z \\to 0} \\frac{f(z_0 + \\Delta z) - f(z_0)}{\\Delta z}",
-              '\\lim_{z\\to z_0} f(z) = w_0 \\iff \\lim u = u_0 \\ \\text{dan}\\ \\lim v = v_0 \\quad\\text{(Teorema §16)}',
+              '\\lim_{z\\to z_0} f(z) = w_0 \\iff \\lim u = u_0 \\ \\text{dan}\\ \\lim v = v_0 \\quad\\text{(Teorema \\S 16)}',
               '\\lim_{z\\to z_0} f(z) = \\infty \\iff \\lim \\frac{1}{f(z)} = 0;\\qquad \\lim_{z\\to\\infty} f(z) = w_0 \\iff \\lim_{z\\to 0} f(1/z) = w_0',
             ],
             insight: {
@@ -161,9 +165,9 @@ export const SUMMARY: Section[] = [
               en: 'Take the difference quotient along the x-direction (Δz = Δx) and the y-direction (Δz = iΔy). They must agree: uₓ + ivₓ = v_y − iu_y. Matching real and imaginary parts gives two equations that must hold whenever f′ exists.',
             },
             formulas: [
-              "u_x = v_y,\\qquad u_y = -v_x \\qquad\\text{dan}\\qquad f'(z_0) = u_x + i v_x \\quad\\text{(syarat perlu, §21)}",
-              "\\text{§22: } u_x, u_y, v_x, v_y \\text{ ada di lingkungan } z_0,\\ \\text{kontinu di } z_0,\\ \\text{CR di } z_0 \\Rightarrow f'(z_0) \\text{ ada}",
-              "\\text{kutub (§23): } r u_r = v_\\theta,\\quad u_\\theta = -r v_r,\\qquad f'(z_0) = e^{-i\\theta}(u_r + i v_r)",
+              "u_x = v_y,\\qquad u_y = -v_x \\qquad\\text{dan}\\qquad f'(z_0) = u_x + i v_x \\quad\\text{(syarat perlu, \\S 21)}",
+              "\\text{\\S 22: } u_x, u_y, v_x, v_y \\text{ ada di lingkungan } z_0,\\ \\text{kontinu di } z_0,\\ \\text{CR di } z_0 \\Rightarrow f'(z_0) \\text{ ada}",
+              "\\text{kutub (\\S 23): } r u_r = v_\\theta,\\quad u_\\theta = -r v_r,\\qquad f'(z_0) = e^{-i\\theta}(u_r + i v_r)",
             ],
             insight: {
               id: 'CR saja hanya syarat perlu. Bersama kekontinuan turunan parsial (§22) barulah cukup. Untuk memeriksa turunan, hitung uₓ, u_y, vₓ, v_y, uji CR, lalu baca f′ = uₓ + ivₓ.',
@@ -176,7 +180,7 @@ export const SUMMARY: Section[] = [
             lab: '#/app/complex',
           },
           {
-            title: { id: 'Fungsi analitik dan fungsi harmonik (§24-27)', en: 'Analytic and harmonic functions (§24-27)' },
+            title: { id: 'Fungsi analitik dan fungsi harmonik (§24-26)', en: 'Analytic and harmonic functions (§24-26)' },
             intuition: {
               id: 'Analitik di z₀ berarti terturunkan di seluruh lingkungan z₀, bukan hanya di satu titik. Fungsi analitik adalah objek yang "kaku": kalau f′ = 0 di suatu domain, f konstan; kalau |f| konstan, f konstan. Turunkan persamaan CR sekali lagi dan Anda mendapat persamaan Laplace: bagian real dan imajiner fungsi analitik selalu harmonik.',
               en: 'Analytic at z₀ means differentiable throughout a neighbourhood of z₀, not just at the point. Analytic functions are "rigid": if f′ = 0 on a domain, f is constant; if |f| is constant, f is constant. Differentiate the CR equations once more and Laplace\'s equation appears: the real and imaginary parts of an analytic function are always harmonic.',
@@ -184,7 +188,7 @@ export const SUMMARY: Section[] = [
             formulas: [
               "f'(z) = 0 \\text{ pada domain } D \\Rightarrow f \\text{ konstan pada } D \\quad (\\S 24)",
               'u_{xx} + u_{yy} = 0,\\quad v_{xx} + v_{yy} = 0 \\quad (\\S 26);\\qquad v \\text{ konjugat harmonik dari } u \\iff u + iv \\text{ analitik}',
-              '\\text{Contoh: } u = y^3 - 3x^2 y \\Rightarrow v = 3xy^2 - x^3 + c,\\quad f(z) = i(z^3 + c)',
+              '\\text{Contoh: } u = y^3 - 3x^2 y \\Rightarrow v = x^3 - 3xy^2 + c,\\quad f(z) = i(z^3 + c)',
             ],
             insight: {
               id: 'Untuk mencari konjugat harmonik: dari v_y = uₓ integralkan terhadap y, lalu tentukan "konstanta" φ(x) dengan vₓ = −u_y. Urutan pasangan penting: u punya konjugat v, tetapi v punya konjugat −u.',
@@ -239,7 +243,7 @@ export const SUMMARY: Section[] = [
             lab: '#/app/complex',
           },
           {
-            title: { id: 'Fungsi trigonometri dan hiperbolik (§34-36)', en: 'Trigonometric and hyperbolic functions (§34-36)' },
+            title: { id: 'Fungsi trigonometri dan hiperbolik (§34-35)', en: 'Trigonometric and hyperbolic functions (§34-35)' },
             intuition: {
               id: 'Definisikan sin dan cos dengan rumus Euler yang dibalik; semua identitas real (jumlah sudut, sin² + cos² = 1, turunan) ikut terbawa karena hanya bergantung pada aljabar eksponensial. Yang hilang adalah keterbatasan: sin z tumbuh seperti e^{|y|}/2 begitu menjauhi sumbu real.',
               en: 'Define sin and cos by inverting Euler\'s formula; every real identity (angle sums, sin² + cos² = 1, derivatives) carries over because it only depends on exponential algebra. What is lost is boundedness: sin z grows like e^{|y|}/2 once you leave the real axis.',
@@ -282,13 +286,13 @@ export const SUMMARY: Section[] = [
           {
             title: { id: 'Antiturunan dan teorema Cauchy-Goursat (§44-49)', en: 'Antiderivatives and the Cauchy-Goursat theorem (§44-49)' },
             intuition: {
-              id: 'Tiga pernyataan setara di suatu domain (§44): f punya antiturunan F; integral f tidak bergantung lintasan; setiap integral tertutup f bernilai nol. Cauchy-Goursat mengatakan analitik sudah cukup untuk semua itu: jika f analitik di dalam dan pada kontur tertutup sederhana C, tidak ada "yang menghalangi", dan ∮_C f dz = 0. Untuk domain berlubang, kontur luar dapat digeser ke kontur dalam tanpa mengubah nilai integral (prinsip deformasi).',
-              en: 'Three equivalent statements on a domain (§44): f has an antiderivative F; integrals of f are path-independent; every closed integral of f vanishes. Cauchy-Goursat says analyticity is enough for all of them: if f is analytic inside and on a simple closed contour C, nothing "obstructs", and ∮_C f dz = 0. On a domain with holes the outer contour may be deformed onto inner ones without changing the integral (principle of deformation).',
+              id: 'Tiga pernyataan setara di suatu domain (§44): f punya antiturunan F; integral f tidak bergantung lintasan; setiap integral tertutup f bernilai nol. Pada domain simply connected, analitik menjamin antiturunan global. Cauchy-Goursat memberi integral nol jika f analitik di dalam dan pada kontur tertutup sederhana C, tidak ada "yang menghalangi", dan ∮_C f dz = 0. Untuk domain berlubang, kontur luar dapat digeser ke kontur dalam tanpa mengubah nilai integral (prinsip deformasi).',
+              en: 'Three equivalent statements on a domain (§44): f has an antiderivative F; integrals of f are path-independent; every closed integral of f vanishes. On a simply connected domain, analyticity guarantees a global primitive. Cauchy-Goursat gives zero integral if f is analytic inside and on a simple closed contour C, nothing "obstructs", and ∮_C f dz = 0. On a domain with holes the outer contour may be deformed onto inner ones without changing the integral (principle of deformation).',
             },
             formulas: [
               "\\int_{z_1}^{z_2} f(z)\\,dz = F(z_2) - F(z_1)\\quad (F' = f \\text{ pada domain yang memuat lintasan})",
-              '\\oint_C f(z)\\,dz = 0 \\quad (f \\text{ analitik di dalam dan pada } C)\\qquad \\text{(Cauchy-Goursat, §46)}',
-              '\\oint_{C} f\\,dz = \\sum_k \\oint_{C_k} f\\,dz \\quad (\\text{domain ganda-terhubung, semua berorientasi positif, §49})',
+              '\\oint_C f(z)\\,dz = 0 \\quad (f \\text{ analitik di dalam dan pada } C)\\qquad \\text{(Cauchy-Goursat, \\S 46)}',
+              '\\oint_{C} f\\,dz = \\sum_k \\oint_{C_k} f\\,dz \\quad (\\text{domain ganda-terhubung, semua berorientasi positif, \\S 49})',
             ],
             insight: {
               id: 'Bentuk praktisnya: kontur mana pun yang mengelilingi singularitas yang sama memberi integral yang sama. Jadi ganti kontur yang rumit dengan lingkaran kecil.',
@@ -316,8 +320,8 @@ export const SUMMARY: Section[] = [
               en: 'Reading an integral problem: write the integrand as f(z)/(z − z₀)^{n+1} with f analytic inside C, and the answer is 2πi f^{(n)}(z₀)/n!. Example in §51: ∮ dz/(z(z²+9)) on |z| = 2 equals 2πi · 1/9.',
             },
             pitfall: {
-              id: 'Liouville menggagalkan intuisi real: sin z tidak terbatas di C (tidak ada fungsi entire tak konstan yang terbatas). Prinsip modulus maksimum: |f| pada domain mencapai maksimum hanya di batas.',
-              en: 'Liouville breaks real intuition: sin z is unbounded on C (no non-constant entire function is bounded). Maximum modulus principle: |f| on a domain attains its maximum only on the boundary.',
+              id: 'Liouville menggagalkan intuisi real: sin z tidak terbatas di C (tidak ada fungsi entire tak konstan yang terbatas). Fungsi analitik tidak konstan tidak memiliki maksimum lokal modulus di interior domain. Pada domain terbatas, jika f kontinu sampai penutupnya, maksimum modulus terdapat pada batas.',
+              en: 'Liouville breaks real intuition: sin z is unbounded on C (no non-constant entire function is bounded). A nonconstant analytic function has no local modulus maximum inside a domain. On a bounded domain, continuity on its closure ensures a modulus maximum on the boundary.',
             },
           },
         ],
@@ -337,16 +341,16 @@ export const SUMMARY: Section[] = [
               'e^{z} = \\sum \\frac{z^n}{n!},\\quad \\frac{1}{1 - z} = \\sum z^n\\ (|z| < 1),\\quad e^{1/z} = 1 + \\frac{1}{z} + \\frac{1}{2!\\,z^2} + \\cdots\\ (|z| > 0)',
             ],
             insight: {
-              id: 'Koefisien b₁ (koefisien 1/(z − z₀)) adalah residu. Deret Laurent bergantung pada anulus: 1/(z − 1) punya dua ekspansi berbeda untuk |z| < 1 dan |z| > 1.',
-              en: 'The coefficient b₁ (of 1/(z − z₀)) is the residue. A Laurent series depends on the annulus: 1/(z − 1) has two different expansions for |z| < 1 and |z| > 1.',
+              id: 'Jika anulus merupakan lingkungan terhapus titik singular terisolasi z₀, koefisien b₁ (koefisien 1/(z − z₀)) adalah residunya. Deret Laurent bergantung pada anulus: 1/(z − 1) punya dua ekspansi berbeda untuk |z| < 1 dan |z| > 1.',
+              en: 'For an annulus that is a punctured neighborhood of an isolated singularity z₀, the coefficient b₁ (of 1/(z − z₀)) is its residue. A Laurent series depends on the annulus: 1/(z − 1) has two different expansions for |z| < 1 and |z| > 1.',
             },
             pitfall: {
-              id: 'Deret pangkat boleh diturunkan dan diintegralkan suku demi suku di dalam cakram kekonvergenannya (§65), tetapi tidak di batasnya.',
-              en: 'A power series may be differentiated and integrated term by term inside its disc of convergence (§65), but not on its boundary.',
+              id: 'Deret pangkat boleh diturunkan dan diintegralkan suku demi suku di dalam cakram kekonvergenannya (§65), tetapi operasi pada batas memerlukan pemeriksaan tambahan.',
+              en: 'A power series may be differentiated and integrated term by term inside its disc of convergence (§65), while operations on the boundary require additional justification.',
             },
           },
           {
-            title: { id: 'Tiga jenis titik singular terisolasi (§68-70)', en: 'The three kinds of isolated singularities (§68-70)' },
+            title: { id: 'Tiga jenis titik singular terisolasi (§68, §72)', en: 'The three kinds of isolated singularities (§68, §72)' },
             intuition: {
               id: 'Lihat bagian utama deret Laurent (suku-suku dengan pangkat negatif). Tidak ada: singularitas dapat dihapuskan, f terbatas dan bisa "ditambal". Berhingga banyak, sampai 1/(z − z₀)^m: kutub orde m, |f| → ∞. Tak hingga banyak: singularitas esensial, f berperilaku liar (Casorati-Weierstrass: mendekati setiap nilai; Picard: mengambil setiap nilai kecuali paling banyak satu, tak hingga kali).',
               en: 'Look at the principal part of the Laurent series (the negative-power terms). None: removable singularity, f is bounded and can be "patched". Finitely many, up to 1/(z − z₀)^m: pole of order m, |f| → ∞. Infinitely many: essential singularity, f behaves wildly (Casorati-Weierstrass: it comes arbitrarily close to every value; Picard: it takes every value but at most one, infinitely often).',
@@ -354,11 +358,11 @@ export const SUMMARY: Section[] = [
             formulas: [
               '\\text{dapat dihapuskan: } b_n = 0\\ \\forall n,\\qquad \\frac{\\sin z}{z} = 1 - \\frac{z^2}{3!} + \\frac{z^4}{5!} - \\cdots',
               '\\text{kutub orde } m: f(z) = \\frac{\\phi(z)}{(z - z_0)^m},\\ \\phi \\text{ analitik},\\ \\phi(z_0) \\ne 0;\\qquad \\frac{1}{z^2},\\ \\frac{1}{\\sin z}',
-              '\\text{esensial: } e^{1/z} \\text{ di } 0;\\qquad \\text{Casorati-Weierstrass (§70), Picard}',
+              '\\text{esensial: } e^{1/z} \\text{ di } 0;\\qquad \\text{Casorati-Weierstrass (\\S 77), Picard}',
             ],
             insight: {
-              id: 'Uji cepat (§70): jika lim (z − z₀)^m f(z) ada dan tidak nol, kutubnya berorde m. Nol berorde m dari q dengan p(z₀) ≠ 0 memberi kutub berorde m dari p/q (§69).',
-              en: 'Quick test (§70): if lim (z − z₀)^m f(z) exists and is nonzero, the pole has order m. A zero of order m of q with p(z₀) ≠ 0 gives a pole of order m of p/q (§69).',
+              id: 'Uji cepat (§73): jika lim (z − z₀)^m f(z) ada dan tidak nol, kutubnya berorde m. Nol berorde m dari q dengan p(z₀) ≠ 0 memberi kutub berorde m dari p/q (§76).',
+              en: 'Quick test (§73): if lim (z − z₀)^m f(z) exists and is nonzero, the pole has order m. A zero of order m of q with p(z₀) ≠ 0 gives a pole of order m of p/q (§76).',
             },
             pitfall: {
               id: 'Singularitas harus terisolasi agar semua ini berlaku. Titik cabang 0 dari Log z bukan singularitas terisolasi, dan 1/sin(1/z) punya singularitas 1/(nπ) yang menumpuk di 0.',
@@ -367,19 +371,19 @@ export const SUMMARY: Section[] = [
             lab: '#/app/complex',
           },
           {
-            title: { id: 'Residu dan teorema residu Cauchy (§66-67, §71-73)', en: 'Residues and Cauchy\'s residue theorem (§66-67, §71-73)' },
+            title: { id: 'Residu dan teorema residu Cauchy (§69-70, §73-74)', en: 'Residues and Cauchy\'s residue theorem (§69-70, §73-74)' },
             intuition: {
               id: 'Integralkan deret Laurent suku demi suku mengelilingi z₀: setiap suku (z − z₀)ⁿ memberi nol kecuali n = −1, yang memberi 2πi b₁. Jadi integral tertutup hanya "melihat" residu setiap singularitas di dalamnya, dan menjumlahkannya. Dari situ, menghitung integral menjadi menghitung residu, dan menghitung residu di kutub adalah menghitung limit atau turunan.',
               en: 'Integrate the Laurent series term by term around z₀: each term (z − z₀)ⁿ contributes zero except n = −1, which gives 2πi b₁. So a closed integral only "sees" the residue of each singularity inside, and adds them up. Hence computing integrals becomes computing residues, and residues at poles are limits or derivatives.',
             },
             formulas: [
-              '\\oint_C f(z)\\,dz = 2\\pi i \\sum_{k=1}^n \\operatorname{Res}_{z = z_k} f(z) \\quad (\\S 66)',
-              '\\text{kutub sederhana (§72): } \\operatorname{Res}_{z_0} f = \\lim_{z\\to z_0}(z - z_0)f(z);\\qquad f = \\frac{p}{q},\\ q(z_0) = 0 \\ne q\'(z_0):\\ \\operatorname{Res} = \\frac{p(z_0)}{q\'(z_0)}\\ (\\S 73)',
-              '\\text{kutub orde } m\\ (\\S 71):\\ f = \\frac{\\phi(z)}{(z - z_0)^m} \\Rightarrow \\operatorname{Res}_{z_0} f = \\frac{\\phi^{(m-1)}(z_0)}{(m-1)!}',
+              '\\oint_C f(z)\\,dz = 2\\pi i \\sum_{k=1}^n \\operatorname{Res}_{z = z_k} f(z) \\quad (\\S 70)',
+              '\\text{kutub sederhana (\\S 73): } \\operatorname{Res}_{z_0} f = \\lim_{z\\to z_0}(z - z_0)f(z);\\qquad f = \\frac{p}{q},\\ q(z_0) = 0,\\ q\'(z_0)\\ne0,\\ p(z_0)\\ne0:\\ \\operatorname{Res} = \\frac{p(z_0)}{q\'(z_0)}\\ (\\S 73)',
+              '\\text{kutub orde } m\\ (\\S 73):\\ f = \\frac{\\phi(z)}{(z - z_0)^m} \\Rightarrow \\operatorname{Res}_{z_0} f = \\frac{\\phi^{(m-1)}(z_0)}{(m-1)!}',
             ],
             insight: {
-              id: 'Contoh §73: 1/sin z punya kutub sederhana di nπ dengan residu 1/cos(nπ) = (−1)ⁿ. Contoh §71: (z² + 1)/(z(z − 2)²) punya Res₀ = 1/4 dan Res₂ = 3/4 (turunkan (z² + 1)/z sekali). Untuk fungsi dengan pecahan parsial sederhana, residunya adalah koefisien 1/(z − z_k).',
-              en: 'Example in §73: 1/sin z has simple poles at nπ with residue 1/cos(nπ) = (−1)ⁿ. Example in §71: (z² + 1)/(z(z − 2)²) has Res₀ = 1/4 and Res₂ = 3/4 (differentiate (z² + 1)/z once). For functions with simple partial fractions the residues are the coefficients of 1/(z − z_k).',
+              id: 'Contoh §74: 1/sin z punya kutub sederhana di nπ dengan residu 1/cos(nπ) = (−1)ⁿ. Contoh §74: (z² + 1)/(z(z − 2)²) punya Res₀ = 1/4 dan Res₂ = 3/4 (turunkan (z² + 1)/z sekali). Untuk fungsi dengan pecahan parsial sederhana, residunya adalah koefisien 1/(z − z_k).',
+              en: 'Example in §74: 1/sin z has simple poles at nπ with residue 1/cos(nπ) = (−1)ⁿ. Example in §74: (z² + 1)/(z(z − 2)²) has Res₀ = 1/4 and Res₂ = 3/4 (differentiate (z² + 1)/z once). For functions with simple partial fractions the residues are the coefficients of 1/(z − z_k).',
             },
             pitfall: {
               id: 'Residu bisa nol walaupun singularitasnya kutub: 1/z² berkutub orde 2 dengan residu 0, sehingga ∮ dz/z² = 0. "Ada singularitas di dalam" tidak berarti "integral tidak nol".',
@@ -710,7 +714,7 @@ export const SUMMARY: Section[] = [
             formulas: [
               'Ha = \\{ha : h \\in H\\},\\qquad Ha = Hb \\iff ab^{-1} \\in H,\\qquad Ha \\cap Hb \\ne \\varnothing \\Rightarrow Ha = Hb',
               '|G| = i_G(H)\\,|H| \\ (2.4.2);\\qquad o(a) \\mid |G| \\ (2.4.4);\\qquad a^{|G|} = e \\ (2.4.5);\\qquad |G| = p \\Rightarrow G \\text{ siklik} \\ (2.4.3)',
-              'U_n = \\{[a] : \\gcd(a, n) = 1\\},\\ |U_n| = \\varphi(n) \\ (2.4.7);\\qquad a^{\\varphi(n)} \\equiv 1 \\ (\\mathrm{mod}\\ n) \\ (\\text{Euler 2.4.8}),\\quad a^{p-1} \\equiv 1 \\ (\\mathrm{mod}\\ p) \\ (\\text{Fermat})',
+              'U_n = \\{[a] : \\gcd(a, n) = 1\\},\\ |U_n| = \\varphi(n) \\ (2.4.7);\\qquad \\gcd(a,n)=1 \\Rightarrow a^{\\varphi(n)} \\equiv 1 \\ (\\mathrm{mod}\\ n) \\ (\\text{Euler 2.4.8}),\\quad p\\text{ prime},\\ p\\nmid a \\Rightarrow a^{p-1} \\equiv 1 \\ (\\mathrm{mod}\\ p) \\ (\\text{Fermat})',
             ],
             insight: {
               id: 'Contoh: U₈ = {1, 3, 5, 7} dengan a² = 1 untuk semua a, jadi tidak siklik; U₉ = ([2]) siklik berorde 6. Kebalikan Lagrange gagal: grup berorde 12 (A₄) tidak punya subgrup berorde 6.',
@@ -828,8 +832,8 @@ export const SUMMARY: Section[] = [
               '\\mathbb{Z}_p \\text{ lapangan (Fermat: } a^{p-2} = a^{-1});\\quad \\mathbb{Z}_n \\text{ lapangan} \\iff n \\text{ prima};\\quad \\text{daerah integral berhingga} \\Rightarrow \\text{lapangan (Soal 4.2.3)}',
             ],
             insight: {
-              id: 'Di Zₙ, [a] unit iff gcd(a, n) = 1 dan pembagi nol iff gcd(a, n) > 1; setiap unsur tak nol adalah salah satunya. Contoh: unit Z₂₄ adalah 1, 5, 7, 11, 13, 17, 19, 23 (Soal 4.1.1).',
-              en: 'In Zₙ, [a] is a unit iff gcd(a, n) = 1 and a zero divisor iff gcd(a, n) > 1; every nonzero element is one or the other. Example: the units of Z₂₄ are 1, 5, 7, 11, 13, 17, 19, 23 (Problem 4.1.1).',
+              id: 'Di Zₙ, untuk [a] ≠ [0], [a] unit iff gcd(a, n) = 1 dan pembagi nol iff gcd(a, n) > 1; setiap unsur tak nol adalah salah satunya. Contoh: unit Z₂₄ adalah 1, 5, 7, 11, 13, 17, 19, 23 (Soal 4.1.1).',
+              en: 'In Zₙ, for [a] ≠ [0], [a] is a unit iff gcd(a, n) = 1 and a zero divisor iff gcd(a, n) > 1; every nonzero element is one or the other. Example: the units of Z₂₄ are 1, 5, 7, 11, 13, 17, 19, 23 (Problem 4.1.1).',
             },
             pitfall: {
               id: 'Dalam gelanggang tak-komutatif (a + b)² = a² + ab + ba + b², bukan a² + 2ab + b² (Lemma 4.2.2). Dan ab = ac dengan a ≠ 0 hanya boleh dikanselasi di daerah integral.',
@@ -905,3 +909,26 @@ export const SUMMARY: Section[] = [
     ],
   },
 ]
+
+// Keep the original textbook entries and insert the slide lessons in lecture order.
+const algebraSection = SUMMARY.find(section => section.id === 'algebra')!
+const originalAlgebraParts = algebraSection.parts
+const algebraEntries = extendAlgebra(originalAlgebraParts.map(part => part.entries), SLIDE_ENTRIES)
+algebraSection.source = 'Tim Dosen Aljabar UI, slide 2025/2026; Herstein, Abstract Algebra, 3rd ed.'
+algebraSection.parts = algebraEntries.map((entries, i) => ({
+  title: i === 0 ? { id: 'Tinjauan himpunan (Bab 1)', en: 'Set foundations (Chapter 1)' } : originalAlgebraParts[i - 1].title,
+  entries,
+}))
+algebraSection.parts[1].entries[5].title = { id: 'Grup faktor: operasi dan proyeksi (2.6)', en: 'Quotient groups: operation and projection (2.6)' }
+
+
+// Follow the supplied geometry lecture sequence while retaining the textbook lessons.
+const geometrySection = SUMMARY.find(section => section.id === 'geometry')!
+const geometryEntries = extendGeometry(geometrySection.parts.map(part => part.entries), GEOMETRY_ENTRIES)
+geometrySection.source = 'Slide Geometri Analitik; Vaisman, Analytical Geometry, 1997'
+geometrySection.parts = GEOMETRY_SECTIONS.map((section, i) => ({ title: section.title, entries: geometryEntries[i] }))
+
+// Follow the course modules and keep every original explanatory lesson.
+const complexSection = SUMMARY.find(section => section.id === 'complex')!
+const complexEntries = extendComplex(complexSection.parts.map(part => part.entries), COMPLEX_ENTRIES)
+complexSection.parts = COMPLEX_SECTIONS.map((section, i) => ({ title: section.title, entries: complexEntries[i] }))

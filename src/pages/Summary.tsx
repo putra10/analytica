@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import { activityHref, topicFromHash, COURSE_TOPICS, type CourseId } from '../content/syllabus-activities'
+import { ComplexCourseMap, ComplexCoursePractice } from '../components/ui/ComplexCourseGuide'
+import { GeometrySlideMap, GeometrySlidePractice } from '../components/ui/GeometrySlideGuide'
+import { AlgebraSlideMap, AlgebraSlidePractice } from '../components/ui/AlgebraSlideGuide'
+import { useEffect, useState } from 'react'
 import { ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import { SUMMARY } from '../content/summary'
 import { PART_VISUALS, SUMMARY_EXAMPLES } from '../content/summary-examples'
@@ -84,13 +88,16 @@ export function Summary({ section }: { section?: string }) {
   const { lang } = useLang()
   const sec = SUMMARY.find((s) => s.id === section) ?? SUMMARY[0]
   const active = sec.id
-  const [selection, setSelection] = useState({ course: active, part: 0, entry: 0 })
+  const [selection, setSelection] = useState(()=>{const topic=COURSE_TOPICS[active as CourseId].find(x=>x.kind===topicFromHash());return {course:active,part:topic?.p??0,entry:topic?.e??0}})
+  useEffect(()=>{const sync=()=>{const topic=COURSE_TOPICS[active as CourseId].find(x=>x.kind===topicFromHash());setSelection({course:active,part:topic?.p??0,entry:topic?.e??0})};sync();addEventListener('hashchange',sync);return()=>removeEventListener('hashchange',sync)},[active])
   const [query,setQuery]=useState('')
   const position = selection.course === active ? selection : { part: 0, entry: 0 }
   const part = sec.parts[position.part] ?? sec.parts[0]
   const entry = part.entries[position.entry] ?? part.entries[0]
   const topics = sec.parts.flatMap((p, i) => p.entries.map((e, j) => ({ part: i, entry: j, title: e.title })))
-  const visualCount=SUMMARY_LESSONS[active].flat().reduce((count,lesson)=>count+1+SUMMARY_CONCEPTS[lesson.visual].length+(VISUAL_THEOREMS[lesson.visual]?.length??0),0)+(active==='algebra'?1:0)
+  const lessons = SUMMARY_LESSONS[active]
+  const currentLesson = lessons[position.part][position.entry]
+  const visualCount=lessons.flat().reduce((count,lesson)=>count+1+SUMMARY_CONCEPTS[lesson.visual].length+(VISUAL_THEOREMS[lesson.visual]?.length??0)+(active==='algebra'&&['quotient','firstIso','correspondence','secondIso','thirdIso'].includes(lesson.visual)?1:0),0)
   const topicIndex = topics.findIndex(p => p.part === position.part && p.entry === position.entry)
   const choose = (partIndex: number, entryIndex: number) => setSelection({ course: active, part: partIndex, entry: entryIndex })
   const move = (offset: number) => {
@@ -118,7 +125,10 @@ export function Summary({ section }: { section?: string }) {
         ))}
       </div>
 
-      <SummaryOverview sec={sec} lessons={SUMMARY_LESSONS[active]} lang={lang} current={[position.part, position.entry]} onPick={(p, e) => { choose(p, e); document.getElementById('summary-topic')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+      {active === 'complex' && <ComplexCourseMap sec={sec} lessons={lessons} lang={lang} onPick={(p, e) => { choose(p, e); document.getElementById('summary-topic')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />}
+      {active === 'geometry' && <GeometrySlideMap sec={sec} lessons={lessons} lang={lang} onPick={(p, e) => { choose(p, e); document.getElementById('summary-topic')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />}
+      {active === 'algebra' && <AlgebraSlideMap sec={sec} lessons={lessons} lang={lang} onPick={(p, e) => { choose(p, e); document.getElementById('summary-topic')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />}
+      <SummaryOverview sec={sec} lessons={lessons} lang={lang} current={[position.part, position.entry]} onPick={(p, e) => { choose(p, e); document.getElementById('summary-topic')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
         title={t('Peta visual mata kuliah: klik gambar untuk membuka topik', 'Visual course map: click a picture to open its topic')}
         hint={t('Setiap kartu menunjukkan gambar kunci dan rumus utama sebuah topik, dikelompokkan menurut subbagian kuliah.', 'Each card shows a topic’s key picture and main formula, grouped by lecture subsection.')} />
       <p className="rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-slate-300">{t(`${topics.length} dari ${topics.length} topik memiliki penjelasan visual · ${visualCount} pilihan konsep`,`${topics.length} of ${topics.length} topics have visual explanations · ${visualCount} concept views`)}</p>
@@ -147,9 +157,12 @@ export function Summary({ section }: { section?: string }) {
           </div>
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
             <div className="min-w-0 flex-1"><p className="text-xs leading-relaxed text-slate-400">{part.title[lang]} · {topicIndex + 1}/{topics.length}</p><h2 className="mt-2 text-lg font-semibold leading-snug text-slate-100">{entry.title[lang]}</h2></div>
-            {entry.lab && <a href={entry.lab} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs text-slate-300 no-underline hover:border-accent hover:text-accent">{t('Eksplorasi di lab', 'Explore in the lab')}<ArrowUpRight size={13} /></a>}
+            {<a href={activityHref(active as CourseId,currentLesson.visual)} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs text-slate-300 no-underline hover:border-accent hover:text-accent">{t('Latihan di Studio / Lab', 'Practice in Studio / Lab')}<ArrowUpRight size={13} /></a>}
           </div>
-          <SummaryLesson key={`${sec.id}-${position.part}-${position.entry}`} lesson={SUMMARY_LESSONS[sec.id][position.part][position.entry]} example={SUMMARY_EXAMPLES[sec.id][position.part][position.entry]} entry={entry} lang={lang} theoremExplorer={sec.id==='algebra'&&position.part===0&&position.entry===4?<TheoremExplorer lang={lang}/>:undefined} />
+          <SummaryLesson key={`${sec.id}-${position.part}-${position.entry}`} lesson={currentLesson} example={SUMMARY_EXAMPLES[sec.id][position.part][position.entry]} entry={entry} lang={lang} theoremExplorer={sec.id==='algebra'&&['quotient','firstIso','correspondence','secondIso','thirdIso'].includes(currentLesson.visual)?<TheoremExplorer lang={lang} initialTheorem={currentLesson.visual === 'firstIso' ? 'first' : currentLesson.visual === 'secondIso' ? 'second' : currentLesson.visual === 'thirdIso' ? 'third' : 'correspondence'}/>:undefined} />
+          {active === 'complex' && <ComplexCoursePractice key={currentLesson.visual} kind={currentLesson.visual} lang={lang} />}
+          {active === 'geometry' && <GeometrySlidePractice key={currentLesson.visual} kind={currentLesson.visual} lang={lang} />}
+          {active === 'algebra' && <AlgebraSlidePractice key={currentLesson.visual} kind={currentLesson.visual} lang={lang} />}
           <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
             <button type="button" disabled={topicIndex === 0} onClick={() => move(-1)} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2.5 text-xs text-slate-300 hover:border-accent disabled:opacity-35"><ChevronLeft size={14} />{t('Topik sebelumnya', 'Previous topic')}</button>
             <button type="button" disabled={topicIndex === topics.length - 1} onClick={() => move(1)} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2.5 text-xs text-slate-300 hover:border-accent disabled:opacity-35">{t('Topik berikutnya', 'Next topic')}<ChevronRight size={14} /></button>

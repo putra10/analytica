@@ -9,8 +9,8 @@ import { cn } from '../../lib/utils'
 export function SummaryOverview({ sec, lessons, lang, current, onPick, title, hint }: {
   sec: Section; lessons: SummaryLesson[][]; lang: 'id' | 'en'; current: [number, number]; onPick: (part: number, entry: number) => void; title: string; hint: string
 }) {
-  // Open on wide screens only; on phones the map would push the topic far below the fold.
-  return <details open={window.matchMedia('(min-width: 1024px)').matches} className="min-w-0 rounded-[var(--radius)] border border-border bg-card p-4 sm:p-5">
+  // Start collapsed so learners can open the course map when they need it.
+  return <details className="min-w-0 rounded-[var(--radius)] border border-border bg-card p-4 sm:p-5">
     <summary className="cursor-pointer text-sm font-semibold text-slate-100">{title}</summary>
     <p className="mt-2 text-xs leading-relaxed text-slate-400">{hint}</p>
     <div className="mt-4 space-y-6">

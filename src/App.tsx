@@ -55,6 +55,7 @@ function StudioPage({ tab }: { tab: 'geometry' | 'complex' }) {
     <nav aria-label={t('Pilih studio', 'Choose a studio')} className="flex flex-wrap gap-2 pt-2">
       {([['geometry', t('Geometri Analitik', 'Analytic Geometry')], ['complex', t('Fungsi Kompleks', 'Complex Functions')]] as const).map(([id, label]) =>
         <a key={id} href={href({ page: 'studio', tab: id })} aria-current={tab === id ? 'page' : undefined} className={cn('rounded-full border px-4 py-2 text-sm no-underline', tab === id ? 'border-accent bg-accent-soft text-accent' : 'border-border text-slate-300 hover:border-accent')}>{label}</a>)}
+      <a href={href({page:'app',tab:'algebra'})} className="rounded-full border border-border px-4 py-2 text-sm no-underline text-slate-300 hover:border-accent">{t('Aljabar · Laboratorium','Algebra · Labs')}</a>
     </nav>
     {tab === 'complex' ? <ComplexStudio /> : <GeometryStudio />}
   </div>

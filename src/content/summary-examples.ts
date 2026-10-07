@@ -1,3 +1,6 @@
+import { extendComplex, COMPLEX_EXAMPLES, complexPartVisuals } from './complex-course-topics'
+import { extendGeometry, GEOMETRY_EXAMPLES, geometryPartVisuals } from './geometry-slide-topics'
+import { extendAlgebra, SLIDE_EXAMPLES } from './algebra-slide-topics'
 export type Bilingual = { id: string; en: string }
 export type WorkedExample = { prompt: Bilingual; work: string; reading: Bilingual }
 export type PartVisual = { title: Bilingual; caption: Bilingual; steps: { label: Bilingual; tex: string }[] }
@@ -184,3 +187,17 @@ export const PART_VISUALS: Record<string, PartVisual[]> = {
     flow('Ideal membentuk aritmetika baru', 'An ideal makes new arithmetic', 'Identifikasi elemen yang berbeda sebesar unsur ideal; kuosien mewarisi dua operasi.', 'Identify elements that differ by an ideal element; the quotient inherits both operations.', [[bi('gelanggang', 'ring'), 'R'], [bi('ideal', 'ideal'), 'I\\triangleleft R'], [bi('kuosien', 'quotient'), 'R/I']]),
   ],
 }
+
+SUMMARY_EXAMPLES.algebra = extendAlgebra(SUMMARY_EXAMPLES.algebra, SLIDE_EXAMPLES)
+PART_VISUALS.algebra.unshift(flow(
+  'Dari objek ke pernyataan yang dapat dibuktikan', 'From objects to statements we can prove',
+  'Kenali jenis anggota, baca predikat atau rumus pembentuknya, lalu buktikan hubungan melalui unsur sembarang.',
+  'Identify the member type, read the predicate or generator, then prove relationships using an arbitrary member.',
+  [[bi('objek', 'object'), 'a\\in U'], [bi('syarat', 'condition'), 'P(a)'], [bi('keanggotaan', 'membership'), 'a\\in\\{x\\in U:P(x)\\}']],
+))
+
+SUMMARY_EXAMPLES.geometry = extendGeometry(SUMMARY_EXAMPLES.geometry, GEOMETRY_EXAMPLES)
+PART_VISUALS.geometry = geometryPartVisuals(PART_VISUALS.geometry)
+
+SUMMARY_EXAMPLES.complex = extendComplex(SUMMARY_EXAMPLES.complex, COMPLEX_EXAMPLES)
+PART_VISUALS.complex = complexPartVisuals(PART_VISUALS.complex)

@@ -940,7 +940,7 @@ function crOut(F: Fn): Out {
     if (p2zero(E1) && p2zero(E2)) {
       const where = p2const(D) ? bi('di seluruh bidang', 'on the whole plane') : bi('di setiap titik dengan penyebut tidak nol', 'at every point where the denominator is nonzero')
       steps.push(st(`$u_x = v_y$ dan $u_y = -v_x$ berlaku identik, ${where.id}. Turunan parsialnya kontinu, jadi $f$ analitik di sana dan $f'(z) = u_x + iv_x$.`, `$u_x = v_y$ and $u_y = -v_x$ hold identically, ${where.en}. The partials are continuous, so $f$ is analytic there and $f'(z) = u_x + iv_x$.`, `f'(z) = ${quoTex(ux, D, true)} + i\\left(${quoTex(vx, D, true)}\\right)`))
-      return { answer: `u_x = v_y,\\ u_y = -v_x\\ \\text{${'✓'}}`, note: bi(`Persamaan Cauchy-Riemann berlaku ${where.id}: f analitik`, `Cauchy-Riemann holds ${where.en}: f is analytic`), steps, marks: singMarks(singular(F, C(0), 6).map((s) => ({ z: s.z, kind: s.branch ? 'branch' : 'pole' }))) }
+      return { answer: `u_x = v_y,\\ u_y = -v_x\\ \\checkmark`, note: bi(`Persamaan Cauchy-Riemann berlaku ${where.id}: f analitik`, `Cauchy-Riemann holds ${where.en}: f is analytic`), steps, marks: singMarks(singular(F, C(0), 6).map((s) => ({ z: s.z, kind: s.branch ? 'branch' : 'pole' }))) }
     }
     steps.push(st('Syarat Cauchy-Riemann menjadi dua persamaan (pembilangnya):', 'The Cauchy-Riemann conditions become two equations (numerators):', `u_x = v_y \\iff ${p2tex(E1)} = 0,\\qquad u_y = -v_x \\iff ${p2tex(E2)} = 0`))
     const set = solveSet(E1, E2, D)
@@ -954,7 +954,7 @@ function crOut(F: Fn): Out {
     steps.push(st('Rumus baku (dengan $z = x + iy$):', 'Standard formula (with $z = x + iy$):', `u = ${el[0]},\\qquad v = ${el[1]}`))
     steps.push(st('Turunan parsial:', 'Partial derivatives:', `\\begin{aligned} u_x &= ${el[2]}, & v_y &= ${el[5]},\\\\ u_y &= ${el[3]}, & v_x &= ${el[4]} \\end{aligned}`))
     steps.push(st('Jadi $u_x = v_y$ dan $u_y = -v_x$ di setiap titik, dan semua parsial kontinu: $f$ entire, dengan $f\'(z) = u_x + iv_x$.', 'So $u_x = v_y$ and $u_y = -v_x$ everywhere and all partials are continuous: $f$ is entire, with $f\'(z) = u_x + iv_x$.', `f'(z) = ${el[2]} + i\\left(${el[4]}\\right)`))
-    return { answer: 'u_x = v_y,\\ u_y = -v_x\\ \\text{✓}', note: bi('Cauchy-Riemann berlaku di seluruh bidang: f entire', 'Cauchy-Riemann holds on the whole plane: f is entire'), steps, marks: [] }
+    return { answer: 'u_x = v_y,\\ u_y = -v_x\\ \\checkmark', note: bi('Cauchy-Riemann berlaku di seluruh bidang: f entire', 'Cauchy-Riemann holds on the whole plane: f is entire'), steps, marks: [] }
   }
   // numeric fallback
   const pts = [C(0.31, 0.72), C(-1.17, 0.43), C(0.83, -1.09)]
@@ -980,7 +980,7 @@ function solveSet(E1: P2, E2: P2, D: P2): { text: Bi; answer: string; marks: Mar
   const okD = (x: number, y: number) => Cx.abs(p2eval(D, x, y)) > 1e-12
   const pointsAns = (ps: Complex[]) => {
     const ok = ps.filter((p) => okD(p.re, p.im))
-    if (!ok.length) return { text: bi('Tidak ada titik yang memenuhi kedua persamaan: Cauchy-Riemann gagal di setiap titik.', 'No point satisfies both equations: Cauchy-Riemann fails everywhere.'), answer: '\\text{CR: ✗}', marks: [], where: false }
+    if (!ok.length) return { text: bi('Tidak ada titik yang memenuhi kedua persamaan: Cauchy-Riemann gagal di setiap titik.', 'No point satisfies both equations: Cauchy-Riemann fails everywhere.'), answer: '\\text{CR: }\\times', marks: [], where: false }
     const list = ok.map((p) => cx(p).tex).join(',\\ ')
     return { text: bi(`Kedua persamaan hanya dipenuhi di $z = ${list}$.`, `Both equations hold only at $z = ${list}$.`), answer: `\\text{CR}\\iff z = ${list}`, marks: ok.map((p) => pointMark(p, lab(p), "root")), where: true }
   }
@@ -1093,25 +1093,26 @@ function limitOut(F: Fn, z0: Complex | null): Out {
   })
   const zt = z0 ? cx(z0).tex : '\\infty', lim = `\\lim_{z\\to ${zt}} f(z)`
   const steps = [st(z0 ? 'Dekati $z_0$ sepanjang beberapa lintasan $z = z(t)$, $t \\to 0^+$, dan bandingkan nilainya (galat orde $t$ dihapus dengan ekstrapolasi Richardson):' : 'Substitusi $z = 1/w$ lalu $w \\to 0$ sepanjang beberapa lintasan:', z0 ? 'Approach $z_0$ along several paths $z = z(t)$, $t \\to 0^+$, and compare (the order-$t$ error is removed by Richardson extrapolation):' : 'Substitute $z = 1/w$ and let $w \\to 0$ along several paths:', `f(z) = ${fnTex(F)}`),
-    ...paths.map((p, k) => st(`${p.id}:`, `${p.en}:`, `${z0 ? `z = ${p.tex}` : `w = ${p.tex.replace('z_0 ', '0 ')}`}\\;\\Rightarrow\\; f \\to ${Cx.isFinite(vals[k]) ? show(vals[k]) : '\\infty'}`))]
+    ...paths.map((p, k) => st(`${p.id}:`, `${p.en}:`, `${z0 ? `z = ${p.tex}` : `w = ${p.tex.replace('z_0 ', '0 ')}`}\\;\\Rightarrow\\; \\widehat{f} \\approx ${Cx.isFinite(vals[k]) ? show(vals[k]) : '\\infty'}`))]
   const inf = vals.every((v) => !Cx.isFinite(v)), fin = vals.filter(Cx.isFinite)
   if (inf) {
-    steps.push(st('$|f| \\to \\infty$ di semua lintasan.', '$|f| \\to \\infty$ along every path.'))
-    return { answer: `${lim} = \\infty`, steps, marks: z0 ? [pointMark(z0, 'z₀', 'root')] : [], value: C(Infinity) }
+    steps.push(st('Semua sampel besar atau tak hingga. Limit tak hingga belum terbukti; perlu estimasi seragam untuk semua arah.', 'All samples are large or nonfinite. An infinite limit is unproved; a uniform estimate over all approaches is needed.'))
+    return { answer: `\\text{unbounded samples; limit unproved}`, steps, marks: z0 ? [pointMark(z0, 'z₀', 'root')] : [], value: C(Infinity) }
   }
   const L = fin[0], agree = fin.length === vals.length && fin.every((v) => Cx.abs(Cx.sub(v, L)) < 1e-5 * (1 + Cx.abs(L)))
+  const reference = vals.findIndex(Cx.isFinite)
   if (!agree) {
     const k = vals.findIndex((v) => !Cx.isFinite(v) || Cx.abs(Cx.sub(v, L)) >= 1e-5 * (1 + Cx.abs(L)))
-    steps.push(st(`Lintasan "${paths[0].id}" dan "${paths[k].id}" memberi nilai berbeda, jadi limitnya tidak ada.`, `The paths "${paths[0].en}" and "${paths[k].en}" give different values, so the limit does not exist.`))
-    return { answer: `${lim}\\ \\text{tidak ada / does not exist}`, note: bi('contoh penyangkal: dua lintasan, dua nilai', 'counterexample: two paths, two values'), steps, marks: z0 ? [pointMark(z0, 'z₀', 'root')] : [] }
+    steps.push(st(`Lintasan "${paths[reference].id}" dan "${paths[k].id}" memberi perkiraan sampel berbeda. Hitung limit kedua lintasan secara eksak untuk membuktikan bahwa limit tidak ada.`, `The paths "${paths[reference].en}" and "${paths[k].en}" give different sample estimates. Compute both path limits exactly to prove that the limit does not exist.`))
+    return { answer: `${lim}\\ \\text{candidate: does not exist; verify paths}`, note: bi('ketidaksepakatan numerik; periksa limit lintasan', 'numerical disagreement; verify the path limits'), steps, marks: z0 ? [pointMark(z0, 'z₀', 'root')] : [] }
   }
   let v = L
   if (z0) {
     const f0 = F.f(z0)
-    if (Cx.isFinite(f0) && Cx.abs(Cx.sub(f0, L)) < 1e-6 * (1 + Cx.abs(L))) { v = tidy(f0); steps.push(st('f terdefinisi dan kontinu di $z_0$, jadi limitnya cukup dengan substitusi:', 'f is defined and continuous at $z_0$, so the limit is found by substitution:', `f(${zt}) ${eqs(v)}`)) }
+    if (Cx.isFinite(f0) && Cx.abs(Cx.sub(f0, L)) < 1e-6 * (1 + Cx.abs(L))) { v = tidy(f0); steps.push(st('Nilai f di titik terdefinisi dan cocok dengan sampel. Substitusi memberi limit hanya jika kekontinuan sudah dibuktikan terpisah:', 'The point value is defined and agrees with samples. Substitution gives a limit only if continuity has been established separately:', `f(${zt}) ${eqs(v)}`)) }
   }
-  steps.push(st('Semua lintasan memberi nilai yang sama. (Kesepakatan pada beberapa lintasan adalah bukti numerik, bukan bukti formal; untuk bukti gunakan sifat limit atau definisi ε-δ.)', 'Every path gives the same value. (Agreement on finitely many paths is numerical evidence, not a proof; for a proof use the limit laws or the ε-δ definition.)'))
-  return { answer: `${lim} ${eqs(v)}`, steps, marks: z0 ? [pointMark(z0, 'z₀', 'root')] : [], value: v }
+  steps.push(st('Semua lintasan yang disampel memberi perkiraan yang sama. (Kesepakatan pada beberapa lintasan adalah hasil eksperimen, bukan pembuktian; untuk bukti gunakan sifat limit atau definisi ε-δ.)', 'Every sampled path gives the same estimate. (Agreement on finitely many paths is experimental evidence, not a proof; for a proof use the limit laws or the ε-δ definition.)'))
+  return { answer: `\\widehat{L}\\approx ${show(v)}\\quad\\text{limit unproved}`, steps, marks: z0 ? [pointMark(z0, 'z₀', 'root')] : [], value: v }
 }
 
 function insideInfo(F: Fn, P: Path) {
@@ -1261,10 +1262,11 @@ function zerosOut(F: Fn): Out {
   }
   const sings = singular(F, C(0), 6)
   zs = zs.filter((s) => !sings.some((t) => near(t.z, s.z, 1e-6)) || Cx.isFinite(F.f(s.z)) && Cx.abs(F.f(s.z)) < 1e-9)
-  const steps = [st(p ? 'Nol f adalah nol pembilang (polinomial); orde = multiplisitas akar:' : 'Nol dicari numerik (metode Newton di |z| ≤ 6); orde = banyaknya turunan yang nol di titik itu:', p ? 'The zeros of f are the zeros of the (polynomial) numerator; order = multiplicity of the root:' : 'Zeros found numerically (Newton in |z| ≤ 6); order = number of vanishing derivatives there:', `f(z) = ${fnTex(F)}`),
+  const steps = [st(p ? 'Nol f adalah nol pembilang (polinomial); orde = multiplisitas akar:' : 'Nol ditemukan lewat pencarian Newton di |z| ≤ 6; pencarian tidak lengkap dan orde diperkirakan memakai toleransi turunan:', p ? 'The zeros of f are the zeros of the (polynomial) numerator; order = multiplicity of the root:' : 'Zeros found by Newton search in |z| ≤ 6; the search is incomplete and orders are estimated using derivative tolerances:', `f(z) = ${fnTex(F)}`),
     ...zs.map((s) => st(`orde ${s.m}`, `order ${s.m}`, `z = ${show(s.z)}`))]
+  steps.push(st('Akar polinomial dan pengelompokannya memakai toleransi numerik. Periksa multiplisitas dengan faktorisasi atau turunan eksak; pencarian nonpolinomial dapat melewatkan nol.', 'Polynomial roots and grouping use numerical tolerances. Verify multiplicities by factorization or exact derivatives; nonpolynomial searches may miss zeros.'))
   if (top && sings.length) steps.push(st('Titik yang juga membuat penyebut nol tidak dihitung sebagai nol f.', 'Points that also make the denominator zero are not counted as zeros of f.'))
-  return { answer: zs.length ? zs.map((s) => `${show(s.z)}${s.m > 1 ? `\\ (m=${s.m})` : ''}`).join(',\\quad ') : '\\text{tidak ada / none}', note: bi(`${zs.length} nol`, `${zs.length} zero${zs.length === 1 ? '' : 's'}`), steps, marks: zs.map((s) => pointMark(s.z, lab(s.z), "zero")), values: zs.map((s) => s.z) }
+  return { answer: zs.length ? zs.map((s) => `${show(s.z)}${s.m > 1 ? `\\ (m=${s.m})` : ''}`).join(',\\quad ') : p ? '\\text{no roots returned}' : '\\text{none found in search; may miss zeros}', note: bi(`${zs.length} nol ditemukan`, `${zs.length} zero${zs.length === 1 ? '' : 's'} found`), steps, marks: zs.map((s) => pointMark(s.z, lab(s.z), "zero")), values: zs.map((s) => s.z) }
 }
 
 function termTex(c: Complex, k: number, base: string): { tex: string; neg: boolean } {

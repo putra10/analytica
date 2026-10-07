@@ -1,3 +1,4 @@
+import { SyllabusWorkbench } from '../components/ui/SyllabusWorkbench'
 import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Line, OrbitControls, Html } from '@react-three/drei'
@@ -170,6 +171,7 @@ export function GeometryStudio() {
   const exportFile = () => { const url = URL.createObjectURL(new Blob([JSON.stringify({ mode, entries }, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = 'analytica-studio.json'; a.click(); URL.revokeObjectURL(url) }
   return <div className="studio">
     <div className="studio-heading"><div><span className="eyebrow">{t('Ruang matematika terbuka', 'An open math workspace')}</span><h1>{t('Studio Geometri', 'Geometry Studio')}<span>.</span></h1><p>{t('Buat objek. Hubungkan ide. Hitung langsung.', 'Create objects. Connect ideas. Calculate live.')}</p></div><div className="studio-mode">{(['2D', '3D'] as const).map(m => <button key={m} aria-pressed={mode === m} onClick={() => { setMode(m); setTool(false) }}>{m}</button>)}</div></div>
+    <SyllabusWorkbench course="geometry" onLoad={(texts,dimension)=>{change(rows(texts));setMode(dimension ?? '2D');setTool(false);setReset(r=>r+1)}} />
     <div className="studio-toolbar">
       <div className="studio-tool-group" role="group" aria-label={t('Buat objek','Create objects')}>
       <button onClick={() => mode === '2D' ? setTool(!tool) : addPoint([1, 1, 1])} aria-pressed={tool}>+ {t('Titik', 'Point')}</button>

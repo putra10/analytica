@@ -1,3 +1,6 @@
+import { COMPLEX_SECTIONS } from '../../content/complex-course-topics'
+import { GEOMETRY_SECTIONS } from '../../content/geometry-slide-topics'
+import { StoryThumb } from './VisualStory'
 import { ArrowRight } from 'lucide-react'
 import type { PartVisual } from '../../content/summary-examples'
 import { Tex } from './FormulaBlock'
@@ -57,7 +60,7 @@ export function SummaryConceptVisual({ course, part, visual, lang }: { course: s
   return (
     <figure className="mb-5 overflow-hidden rounded-[var(--radius)] border border-border bg-card shadow-[var(--shadow-sm)]">
       <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-center">
-        <ConceptSketch course={course} part={part} />
+        {course === 'complex' ? <StoryThumb kind={COMPLEX_SECTIONS[part].order[0]} lang={lang} /> : course === 'geometry' ? <StoryThumb kind={GEOMETRY_SECTIONS[part].order[0]} lang={lang} /> : course === 'algebra' && part === 0 ? <StoryThumb kind="setEquality" lang={lang} /> : <ConceptSketch course={course} part={course === 'algebra' ? part - 1 : part} />}
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-slate-100">{visual.title[lang]}</h3>
           <p className="mt-1 text-xs leading-relaxed text-slate-400">{visual.caption[lang]}</p>
