@@ -1212,7 +1212,9 @@ function residuesOut(F: Fn, P: Path | null): Out {
     steps.push(st(P ? 'Tidak ada titik singular di dalam C, jadi menurut Cauchy-Goursat integralnya 0.' : 'Tidak ditemukan titik singular terisolasi.', P ? 'No singular points inside C, so by Cauchy-Goursat the integral is 0.' : 'No isolated singular points were found.', P ? '\\oint_C f\\,dz = 0' : undefined))
     return { answer: P ? '\\oint_C f\\,dz = 0' : '\\text{tidak ada / none}', steps, marks: P ? pathMarks(P) : [], value: C(0) }
   }
-  const res = list.map((s) => ({ ...s, r: residueAt(F, s.z, sings) }))
+  // root finders return repeated poles with ~1e-9 noise (2 − 2.8e−9 i); snap those to the nearby round value
+  const sn = (v: number) => { const r = Math.round(v * 1e4) / 1e4; return Math.abs(v - r) < 1e-6 ? r : v }
+  const res = list.map((s) => { const z = C(sn(s.z.re), sn(s.z.im)); return { ...s, z, r: residueAt(F, z, sings) } })
   for (const s of res) steps.push(st(`$z = ${cx(s.z).tex}$: ${kindBi(s.r.kind).id}; ${s.r.method.id}.${s.n !== 1 ? ` Indeks lintasan ${s.n}.` : ''}`, `$z = ${cx(s.z).tex}$: ${kindBi(s.r.kind).en}; ${s.r.method.en}.${s.n !== 1 ? ` Winding number ${s.n}.` : ''}`, `\\operatorname*{Res}_{z=${cx(s.z).tex}} f ${eqs(s.r.res)}`))
   const marks = [...(P ? pathMarks(P) : []), ...singMarks(res.map((s) => ({ z: s.z, kind: s.r.kind.kind })))]
   if (!P) return { answer: res.map((s) => `\\operatorname*{Res}_{${cx(s.z).tex}} ${eqs(s.r.res)}`).join(',\\quad '), steps, marks, values: res.map((s) => s.r.res), value: res[0].r.res }

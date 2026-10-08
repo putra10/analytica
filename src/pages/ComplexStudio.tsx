@@ -3,7 +3,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLang, useT } from '../lib/i18n'
 import { calculate, ROW_COLORS, type Bi, type Entry, type Step } from '../lib/complex-studio'
 import { Tex } from '../components/ui/FormulaBlock'
-import { ArgandPlane } from '../components/complex-studio/ArgandPlane'
+import './studio.css'
+import { ArgandPlane, DRAGGABLE, type PlaneTool } from '../components/complex-studio/ArgandPlane'
+import type { Complex } from '../lib/complex-math'
+
+/** a+bi with at most two decimals, the way a student would type it. */
+const lit = (z: Complex) => { const r = (v: number) => +v.toFixed(2); return `${r(z.re)}${r(z.im) < 0 ? '-' : '+'}${Math.abs(r(z.im))}i` }
+/** Letters free for named numbers (i, e, x, y are reserved; f, g are kept for functions). */
+const NAME_POOL = 'abcdhjkmnpqrstuvw'
 
 const KEY = 'analytica-complex-studio-v1'
 const rows = (texts: string[]): Entry[] => texts.map((text) => ({ id: crypto.randomUUID(), text }))
@@ -44,12 +51,12 @@ function initial(): Entry[] {
 }
 
 /** Text with inline $math$ segments. */
-const Rich = ({ text }: { text: string }) => <>{text.split('$').map((part, i) => i % 2 ? <Tex key={i} tex={part} /> : <span key={i}>{part}</span>)}</>
+export const Rich = ({ text }: { text: string }) => <>{text.split('$').map((part, i) => i % 2 ? <Tex key={i} tex={part} /> : <span key={i}>{part}</span>)}</>
 
-function Steps({ steps }: { steps: Step[] }) {
+export function Steps({ steps, compact }: { steps: Step[]; compact?: boolean }) {
   const t = useT(), { lang } = useLang(), [open, setOpen] = useState(false)
-  return <details className="mt-2 rounded-lg border border-border bg-slate-800/40" onToggle={(e) => setOpen(e.currentTarget.open)}>
-    <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-accent">{t('Langkah', 'Steps')} <span className="text-slate-500">({steps.length})</span></summary>
+  return <details className={compact ? 'studio-steps' : 'mt-2 rounded-lg border border-border bg-slate-800/40'} onToggle={(e) => setOpen(e.currentTarget.open)}>
+    <summary className={compact ? undefined : 'cursor-pointer select-none px-3 py-2 text-xs font-medium text-accent'}>{t('Langkah', 'Steps')} <span className="text-slate-500">({steps.length})</span></summary>
     {open && <ol className="list-decimal space-y-2 px-3 pb-3 pl-8 text-[13px] leading-relaxed text-slate-300">
       {steps.map((s, i) => <li key={i} className="min-w-0">
         <p><Rich text={lang === 'id' ? s.id : s.en} /></p>
@@ -69,6 +76,32 @@ export function ComplexStudio() {
   useEffect(() => { const id = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(entries)) } catch { /* private mode */ } }, 400); return () => clearTimeout(id) }, [entries])
   const update = (id: string, text: string) => setEntries((es) => es.map((e) => e.id === id ? { ...e, text } : e))
   const append = () => setEntries((es) => es.length < 60 ? [...es, ...rows([''])] : es)
+  const [tool, setToolState] = useState<PlaneTool>('move'), [pending, setPending] = useState<string | null>(null)
+  const setTool = (t: PlaneTool) => { setToolState(t); setPending(null) }
+  const pendingValue = results.find((r) => r.name === pending)?.value
+  /** Canvas click with a drawing tool: reuse the named point under the cursor or create one, then build the path from two points. */
+  const place = (z: Complex, hit?: string) => {
+    if (entries.length >= 59) return
+    const used = new Set(results.map((r) => r.name)), texts: string[] = []
+    let name = hit
+    if (!name) {
+      name = [...NAME_POOL].find((c) => !used.has(c))
+      if (!name) return
+      texts.push(`${name} = ${lit(z)}`)
+    }
+    if (tool !== 'point') {
+      if (!pending) setPending(name)
+      else if (name !== pending) {
+        let k = 1, P = tool === 'circle' ? 'C' : 'S'
+        while (used.has(`${P}${k}`)) k++
+        texts.push(tool === 'circle' ? `${P}${k} = circle(${pending}, abs(${name}-${pending}))` : `${P}${k} = segment(${pending}, ${name})`)
+        setPending(null)
+      }
+    }
+    if (texts.length) setEntries((es) => [...es, ...rows(texts)])
+  }
+  const move = (id: string, z: Complex) => setEntries((es) => es.map((e) => { const m = e.text.match(DRAGGABLE); return e.id === id && m ? { ...e, text: `${m[1]} = ${lit(z)}` } : e }))
+  useEffect(() => { const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setTool('move') }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc) }, [])
 
   return <div className="space-y-5">
     <header className="pt-2">
@@ -84,36 +117,43 @@ export function ComplexStudio() {
       {EXAMPLES.map((ex) => <button key={ex.en} onClick={() => { setEntries(rows(ex.rows)); setFocus(null) }} className="rounded-full border border-border px-3 py-1.5 text-xs text-slate-300 hover:border-accent hover:text-accent">{pick(ex)}</button>)}
     </div>
 
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-      <div className="min-w-0 space-y-2 lg:order-1 order-2">
-        {results.map((r, i) => <div key={r.entry.id} className="min-w-0 rounded-xl border border-border bg-card p-3 shadow-sm focus-within:border-accent" onFocus={() => setFocus(r.entry.id)}>
-          <div className="flex items-center gap-2 text-[11px] text-slate-500">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: r.error ? 'transparent' : ROW_COLORS[i % ROW_COLORS.length], border: `2px solid ${ROW_COLORS[i % ROW_COLORS.length]}` }} />
-            <span className="font-mono">{r.name}</span>
-            <button aria-label={t(`Hapus baris ${i + 1}`, `Delete row ${i + 1}`)} onClick={() => setEntries((es) => es.filter((e) => e.id !== r.entry.id))} className="ml-auto px-1 text-lg leading-none text-slate-500 hover:text-rose-300">×</button>
+    <div className="grid overflow-hidden rounded-[14px] border border-border shadow-sm lg:grid-cols-[380px_minmax(0,1fr)]">
+      <aside className="studio studio-expressions min-w-0">
+        <div className="studio-panel-title"><strong>{t('Baris & hasil', 'Rows & results')}</strong><span>{entries.length}/60</span></div>
+        <div className="studio-rows">{results.map((r, i) => <div key={r.entry.id} className="studio-row" onFocus={() => setFocus(r.entry.id)}>
+          <div className="studio-row-top">
+            <span className="h-[13px] w-[13px] shrink-0 rounded-full" style={{ background: r.error ? 'transparent' : ROW_COLORS[i % ROW_COLORS.length], border: `2px solid ${ROW_COLORS[i % ROW_COLORS.length]}` }} />
+            <span>{r.name}</span>
+            <button className="studio-delete" aria-label={t(`Hapus baris ${i + 1}`, `Delete row ${i + 1}`)} onClick={() => setEntries((es) => es.filter((e) => e.id !== r.entry.id))}>×</button>
           </div>
           <input aria-label={t(`Baris ${i + 1}`, `Row ${i + 1}`)} value={r.entry.text} maxLength={300} spellCheck={false} autoCapitalize="off" autoCorrect="off"
-            onChange={(e) => update(r.entry.id, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') append() }}
-            className="mt-1.5 block w-full min-w-0 rounded-lg border border-border bg-slate-800 px-2.5 py-2 font-mono text-[13px] text-slate-100 outline-none focus:border-accent" />
-          {r.error ? <p className="mt-2 text-xs text-rose-300"><Rich text={pick(r.error)} /></p> : <>
-            {r.answer && <Tex block tex={r.answer} className="mt-1 text-[15px]" />}
-            {r.note && <p className="text-xs text-slate-400">{pick(r.note)}</p>}
-            {r.steps.length > 0 && <Steps steps={r.steps} />}
+            onChange={(e) => update(r.entry.id, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') append() }} />
+          {r.error ? <div className="studio-error"><Rich text={pick(r.error)} /></div> : <>
+            {r.answer && <div className="tex-scroll overflow-x-auto whitespace-nowrap text-[13px]"><Tex tex={r.answer} /></div>}
+            {r.note && <div className="studio-result">{pick(r.note)}</div>}
+            {r.steps.length > 0 && <Steps compact steps={r.steps} />}
           </>}
-        </div>)}
-        <button onClick={append} disabled={entries.length >= 60} className="w-full rounded-xl border border-dashed border-slate-700 px-3 py-2.5 text-sm text-slate-300 hover:border-accent hover:text-accent disabled:opacity-40">+ {t('Tambah baris', 'Add row')}</button>
-        <p className="text-[11px] text-slate-500">{t('Disimpan di browser ini.', 'Saved in this browser.')}</p>
-      </div>
-      <aside className="order-1 min-w-0 lg:order-2">
-        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:sticky lg:top-20">
+        </div>)}</div>
+        <button className="studio-add" onClick={append} disabled={entries.length >= 60}>+ {t('Tambah baris', 'Add row')}</button>
+        <p className="studio-save">{t('Disimpan di browser ini', 'Saved in this browser')}</p>
+      </aside>
+      <section className="order-first min-w-0 border-border bg-card lg:order-none lg:border-l">
           <div className="flex items-center justify-between border-b border-border px-3 py-2 text-[11px] text-slate-400">
             <span className="font-mono">{t('BIDANG KOMPLEKS', 'ARGAND PLANE')}</span>
             {focus && <button onClick={() => setFocus(null)} className="text-accent">{t('Tampilkan semua', 'Show all')}</button>}
           </div>
-          <ArgandPlane rows={results} focus={focus} />
+          <div className="flex flex-wrap gap-1.5 border-b border-border px-3 py-2" role="group" aria-label={t('Alat gambar', 'Drawing tools')}>
+            {([['move', t('✥ Geser', '✥ Move')], ['point', t('✎ Titik', '✎ Point')], ['segment', t('✎ Ruas', '✎ Segment')], ['circle', t('✎ Lingkaran', '✎ Circle')]] as const).map(([id, label]) =>
+              <button key={id} aria-pressed={tool === id} onClick={() => setTool(id)} className={`rounded-md border px-2.5 py-1 text-xs ${tool === id ? 'border-accent bg-accent text-accent-ink' : 'border-border text-slate-300 hover:border-accent'}`}>{label}</button>)}
+          </div>
+          <ArgandPlane rows={results} focus={focus} tool={tool} pending={pendingValue} onPlace={place} onMove={move} />
+          <p className="border-t border-border px-3 py-2 text-[11px] text-accent">{tool === 'move'
+            ? t('Gulir / + − untuk zoom · seret latar untuk geser · seret titik bernama (a, b, …) untuk memindahkannya.', 'Scroll or + − to zoom · drag the background to pan · drag a named point (a, b, …) to move it.')
+            : tool === 'point' ? t('Klik untuk menaruh bilangan kompleks baru.', 'Click to place a new complex number.')
+            : pending ? t(`Klik titik kedua (dari ${pending}). Esc untuk batal.`, `Click the second point (from ${pending}). Esc to cancel.`)
+            : tool === 'circle' ? t('Klik pusat lingkaran.', 'Click the centre of the circle.') : t('Klik titik awal ruas.', 'Click the start of the segment.')}</p>
           <p className="border-t border-border px-3 py-2 text-[11px] leading-relaxed text-slate-400">{t('Titik dan panah: bilangan · ×: kutub · ⊗: titik singular esensial · ▢: titik cabang · lingkaran berongga: nol · garis putus-putus: lingkaran akar, anulus, atau batas daerah. Baris yang sedang diedit ditonjolkan.', 'Dots and arrows: numbers · ×: poles · ⊗: essential singularities · ▢: branch points · hollow dots: zeros · dashed: root circles, annuli or region boundaries. The row being edited is highlighted.')}</p>
-        </div>
-      </aside>
+      </section>
     </div>
 
     <section className="rounded-xl border border-border bg-card p-4">

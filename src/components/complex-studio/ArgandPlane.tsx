@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { Arrow, C, Clip, Dot, T, pl, type P } from '../stories/kit'
 import { ROW_COLORS, type Mark, type Row } from '../../lib/complex-studio'
 import type { Complex } from '../../lib/complex-math'
@@ -64,17 +65,61 @@ function MarkView({ m, color, map, unit, view, k }: { m: Mark; color: string; ma
   </g>
 }
 
-/** Argand plane in the picture-story style: faint grid, labelled points with halos, paths with direction arrows. */
-export function ArgandPlane({ rows, focus }: { rows: Row[]; focus: string | null }) {
+export type PlaneTool = 'move' | 'point' | 'segment' | 'circle'
+/** A row the plane may rewrite when its point is dragged: `a = <number literal>`. */
+export const DRAGGABLE = /^\s*([a-z])\s*=\s*[-+0-9.\si*]+$/
+type ViewBox = { cx: number; cy: number; u: number }
+
+/** Argand plane in the picture-story style: faint grid, labelled points with halos, paths with direction arrows.
+ *  Scroll or +/− to zoom, drag the background to pan, drag a named point to move it; drawing tools report clicks. */
+export function ArgandPlane({ rows, focus, tool = 'move', pending, onPlace, onMove }: {
+  rows: Row[]; focus: string | null; tool?: PlaneTool; pending?: Complex
+  onPlace?: (z: Complex, hit?: string) => void; onMove?: (rowId: string, z: Complex) => void
+}) {
   const live = rows.filter((r) => !r.error && r.marks.length)
-  const { cx, cy, u } = fit(live)
+  const [manual, setManual] = useState<ViewBox | null>(null)
+  const [cursor, setCursor] = useState<Complex | null>(null)
+  const { cx, cy, u } = manual ?? fit(live)
+  const svgRef = useRef<SVGSVGElement>(null)
+  const drag = useRef<{ row?: string; x: number; y: number; cx: number; cy: number } | null>(null)
+  const toSvg = (e: { clientX: number; clientY: number }): P => { const b = svgRef.current!.getBoundingClientRect(); return [(e.clientX - b.left) * W / b.width, (e.clientY - b.top) * H / b.height] }
+  const toZ = (p: P): Complex => ({ re: cx + (p[0] - W / 2) / u, im: cy - (p[1] - H / 2) / u })
+  const zoom = (k: number, at: P = [W / 2, H / 2]) => { const z = toZ(at), nu = Math.min(2000, Math.max(2, u * k)); setManual({ cx: z.re - (at[0] - W / 2) / nu, cy: z.im + (at[1] - H / 2) / nu, u: nu }) }
+  const zoomRef = useRef(zoom)
+  zoomRef.current = zoom
+  useEffect(() => {
+    // native listener: React's wheel handler is passive and cannot stop the page from scrolling
+    const el = svgRef.current!, wheel = (e: WheelEvent) => { e.preventDefault(); zoomRef.current(e.deltaY > 0 ? 0.88 : 1.14, toSvg(e)) }
+    el.addEventListener('wheel', wheel, { passive: false })
+    return () => el.removeEventListener('wheel', wheel)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const map = (z: Complex): P => [W / 2 + (z.re - cx) * u, H / 2 - (z.im - cy) * u]
   const view = { x0: cx - W / 2 / u, x1: cx + W / 2 / u, y0: cy - H / 2 / u, y1: cy + H / 2 / u }
   const step = niceStep(view.x1 - view.x0), lines: number[][] = [[], []]
   for (let v = Math.ceil(view.x0 / step) * step; v <= view.x1; v += step) lines[0].push(v)
   for (let v = Math.ceil(view.y0 / step) * step; v <= view.y1; v += step) lines[1].push(v)
   const o = map({ re: 0, im: 0 }), ax = Math.min(H - 8, Math.max(14, o[1] + 15)), ay = Math.min(W - 30, Math.max(6, o[0] + 5))
-  return <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label="Argand plane">
+  const hitOf = (e: React.PointerEvent) => (e.target as Element).closest<SVGElement>('[data-name]')?.dataset
+  const btn = 'flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-sm text-slate-200 hover:border-accent'
+  return <div className="relative">
+  <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full touch-none select-none" role="img" aria-label="Argand plane"
+    style={{ cursor: tool === 'move' ? 'grab' : 'crosshair' }}
+    onPointerDown={(e) => {
+      const hit = hitOf(e)
+      if (!manual) setManual({ cx, cy, u }) // stop auto-fit from moving the view under the user's hand
+      if (tool !== 'move') { onPlace?.(toZ(toSvg(e)), hit?.name); return }
+      e.currentTarget.setPointerCapture(e.pointerId)
+      drag.current = { row: hit?.row, x: e.clientX, y: e.clientY, cx, cy }
+    }}
+    onPointerMove={(e) => {
+      if (tool !== 'move') setCursor(toZ(toSvg(e)))
+      const d = drag.current
+      if (!d) return
+      if (d.row) onMove?.(d.row, toZ(toSvg(e)))
+      else { const k = W / svgRef.current!.getBoundingClientRect().width / u; setManual({ cx: d.cx - (e.clientX - d.x) * k, cy: d.cy + (e.clientY - d.y) * k, u }) }
+    }}
+    onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }} onPointerLeave={() => setCursor(null)}>
     <rect width={W} height={H} fill={C.bg} />
     <Clip id="argand" x={0} y={0} w={W} h={H}>
       {lines[0].map((v) => <path key={`x${v}`} d={`M${map({ re: v, im: 0 })[0]},0 V${H}`} stroke={C.faint} />)}
@@ -86,10 +131,23 @@ export function ArgandPlane({ rows, focus }: { rows: Row[]; focus: string | null
       <T x={Math.min(W - 8, Math.max(8, o[0] + 8))} y={14} size={12} color={C.mu} anchor="start">Im</T>
       {[...live].sort((a, b) => (a.entry.id === focus ? 1 : 0) - (b.entry.id === focus ? 1 : 0)).map((r) => {
         const color = ROW_COLORS[rows.indexOf(r) % ROW_COLORS.length]
+        const named = /^[a-z]$/.test(r.name) && r.value
         return <g key={r.entry.id} style={{ opacity: focus && focus !== r.entry.id ? 0.28 : 1, transition: 'opacity .3s ease' }}>
           {r.marks.map((m, i) => <MarkView key={i} k={String(i)} m={m} color={color} map={map} unit={u} view={view} />)}
+          {named && (() => { const p = map(r.value!); return <circle data-name={r.name} data-row={DRAGGABLE.test(r.entry.text) ? r.entry.id : undefined} cx={p[0]} cy={p[1]} r={12} fill="transparent" style={{ cursor: DRAGGABLE.test(r.entry.text) ? 'grab' : undefined }} /> })()}
         </g>
       })}
+      {pending && (() => { const p = map(pending), q = cursor && map(cursor); return <g pointerEvents="none">
+        <circle cx={p[0]} cy={p[1]} r={11} fill="none" stroke={C.y} strokeWidth={2} />
+        {q && tool === 'segment' && <path d={`M${p[0]},${p[1]} L${q[0]},${q[1]}`} stroke={C.y} strokeDasharray="5 5" />}
+        {q && tool === 'circle' && <circle cx={p[0]} cy={p[1]} r={Math.hypot(q[0] - p[0], q[1] - p[1])} fill="none" stroke={C.y} strokeDasharray="5 5" />}
+      </g> })()}
     </Clip>
   </svg>
+  <div className="absolute right-2 top-2 flex flex-col gap-1.5">
+    <button aria-label="Zoom in" className={btn} onClick={() => zoom(1.25)}>+</button>
+    <button aria-label="Zoom out" className={btn} onClick={() => zoom(0.8)}>−</button>
+    <button aria-label="Fit" title="Fit" className={btn} onClick={() => setManual(null)}>⤢</button>
+  </div>
+  </div>
 }

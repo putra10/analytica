@@ -61,3 +61,5 @@
 .studio-steps .katex-display { margin:4px 0; text-align:left; }
 .studio-steps .katex-display > .katex { text-align:left; }
 @media(min-width:1100px) { .studio-workspace { grid-template-columns:380px minmax(0,1fr); } }
+.studio-zoom { position:absolute; right:12px; top:12px; display:flex; flex-direction:column; gap:6px; }
+.studio .studio-zoom button { width:34px; height:34px; padding:0; font-size:18px; line-height:1; }

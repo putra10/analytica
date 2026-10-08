@@ -9,8 +9,9 @@ import { ComplexCanvas, DEFAULT_VIEW, type Overlay, type View } from './ComplexC
 import { ComplexControls } from './ComplexControls'
 import { ComplexTheory } from './ComplexTheory'
 import { MappingLab } from './MappingLab'
+import { ComplexCalculator } from './ComplexCalculator'
 
-type Sub = 'mapping' | 'map' | 'sing'
+type Sub = 'calc' | 'mapping' | 'map' | 'sing'
 const MAP_PRESETS = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 const SING_PRESETS = [9, 10, 11, 14, 15, 12, 13, 1, 5, 6]
 
@@ -21,7 +22,7 @@ function parsePoints(text: string): Complex[] {
 
 export function ComplexModule() {
   const t = useT()
-  const [sub, setSub] = useState<Sub>(()=>{const lab=new URLSearchParams(location.hash.split('?')[1]??'').get('lab');return ['mapping','map','sing'].includes(lab??'')?lab as Sub:'mapping'})
+  const [sub, setSub] = useState<Sub>(()=>{const lab=new URLSearchParams(location.hash.split('?')[1]??'').get('lab');return ['calc','mapping','map','sing'].includes(lab??'')?lab as Sub:'calc'})
   const [preset, setPreset] = useState(0)
   const [c, setC] = useState<Complex>(C(-0.4, 0.6))
   const [mode, setMode] = useState<'color' | 'grid'>('color')
@@ -80,17 +81,17 @@ export function ComplexModule() {
 
   return (
     <div className="space-y-4">
-      <SyllabusWorkbench course="complex" onLab={lab=>{if(['mapping','map','sing'].includes(lab))switchSub(lab as Sub)}} />
       <SubTabs
         active={sub}
         onChange={switchSub}
         tabs={[
+          { id: 'calc', label: t('Kalkulator f(z)', 'f(z) calculator') },
           { id: 'mapping', label: t('Pemetaan w = f(z)', 'Mappings w = f(z)') },
           { id: 'map', label: t('Pewarnaan Domain & Fungsi Analitik', 'Domain Colouring & Analytic Functions') },
           { id: 'sing', label: t('Singularitas, Residu & Integral Kontur', 'Singularities, Residues & Contour Integrals') },
         ]}
       />
-      {sub === 'mapping' ? <MappingLab /> : (
+      {sub === 'calc' ? <ComplexCalculator /> : sub === 'mapping' ? <MappingLab /> : (
       <Layout
         canvas={
           <ComplexCanvas
@@ -111,6 +112,7 @@ export function ComplexModule() {
         theory={<ComplexTheory p={current} c={c} hover={hover} contour={sub === 'sing' ? contour : undefined} />}
       />
       )}
+      <SyllabusWorkbench course="complex" onLab={lab=>{if(['mapping','map','sing'].includes(lab))switchSub(lab as Sub)}} />
     </div>
   )
 }

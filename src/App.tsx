@@ -17,12 +17,12 @@ const MODULES: Partial<Record<TabId, () => React.JSX.Element>> = { complex: Comp
 
 const INTRO: Partial<Record<TabId, { id: [string, string]; en: [string, string] }>> = {
   complex: {
-    id: ['Lihat fungsi kompleks bekerja.', 'Pemetaan w = f(z), pewarnaan domain, uji Cauchy-Riemann, dan teorema residu yang diverifikasi secara numerik. Ketik fungsi Anda sendiri.'],
-    en: ['Watch complex functions work.', 'Mappings w = f(z), domain colouring, Cauchy-Riemann checks and the residue theorem verified numerically. Type your own function.'],
+    id: ['Kalkulator fungsi kompleks.', 'Ketik f(z) sekali: nilai, analitik atau tidak, turunan, pembuat nol, residu, deret Taylor, dan integral kontur muncul langsung dengan langkahnya. Sketsa hanya jika kamu mau.'],
+    en: ['Complex function calculator.', 'Type f(z) once: its value, whether it is analytic, derivative, zeros, residues, Taylor series and contour integral appear at once, with working. Sketches only if you want them.'],
   },
   algebra: {
-    id: ['Struktur grup dan gelanggang, dihitung langsung.', 'Tabel Cayley, koset, grup faktor, isomorfisma, permutasi, ideal dan polinom mengikuti Herstein.'],
-    en: ['Group and ring structure, computed live.', 'Cayley tables, cosets, factor groups, isomorphisms, permutations, ideals and polynomials, following Herstein.'],
+    id: ['Alat hitung aljabar.', 'Himpunan, grup, koset, teorema homomorfisme, permutasi, gelanggang, polinom dan isomorfisma: ketik atau pilih objeknya, hasilnya dihitung dengan langkah. Setiap tab menyebut topik kuliah yang dicakupnya.'],
+    en: ['Algebra tools.', 'Sets, groups, cosets, homomorphism theorems, permutations, rings, polynomials and isomorphisms: type or pick the objects and the results are worked out. Each tab lists the course topics it covers.'],
   },
 }
 
@@ -33,11 +33,11 @@ function Workbench({ tab }: { tab: TabId }) {
   const intro = INTRO[tab]!
   return (
     <div className="space-y-5">
-      <TabNav active={tab} onChange={(id) => navigate({ page: 'app', tab: id })} />
+      <TabNav active={tab} only={Object.keys(MODULES) as TabId[]} onChange={(id) => navigate({ page: 'app', tab: id })} />
       <AnimatePresence mode="wait">
         <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }} className="space-y-5">
           <section className="pt-2">
-            <span className="eyebrow">{t('Modul', 'Module')} {meta.num} · {t(meta.id_label, meta.en_label)}</span>
+            <span className="eyebrow">{t('Modul', 'Module')} {String(Object.keys(MODULES).indexOf(tab) + 1).padStart(2, '0')} · {t(meta.id_label, meta.en_label)}</span>
             <h1 className="font-display mt-2 text-[clamp(30px,4vw,46px)] text-slate-100">{t(intro.id[0], intro.en[0])}</h1>
             <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-slate-400">{t(intro.id[1], intro.en[1])}</p>
           </section>
@@ -55,7 +55,6 @@ function StudioPage({ tab }: { tab: 'geometry' | 'complex' }) {
     <nav aria-label={t('Pilih studio', 'Choose a studio')} className="flex flex-wrap gap-2 pt-2">
       {([['geometry', t('Geometri Analitik', 'Analytic Geometry')], ['complex', t('Fungsi Kompleks', 'Complex Functions')]] as const).map(([id, label]) =>
         <a key={id} href={href({ page: 'studio', tab: id })} aria-current={tab === id ? 'page' : undefined} className={cn('rounded-full border px-4 py-2 text-sm no-underline', tab === id ? 'border-accent bg-accent-soft text-accent' : 'border-border text-slate-300 hover:border-accent')}>{label}</a>)}
-      <a href={href({page:'app',tab:'algebra'})} className="rounded-full border border-border px-4 py-2 text-sm no-underline text-slate-300 hover:border-accent">{t('Aljabar · Laboratorium','Algebra · Labs')}</a>
     </nav>
     {tab === 'complex' ? <ComplexStudio /> : <GeometryStudio />}
   </div>

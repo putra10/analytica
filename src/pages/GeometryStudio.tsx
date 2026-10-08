@@ -95,7 +95,9 @@ function Scene({ results }: { results: Result[] }) {
     <OrbitControls makeDefault />
   </Canvas>
 }
-function Plot({ results, tool, onPoint, onMove }: { results: Result[]; tool: boolean; onPoint: (p: V) => void; onMove: (id: string, p: V) => void }) {
+export type Tool = 'move' | 'point' | 'segment' | 'line' | 'circle'
+function Plot({ results, tool, pending, onPlace, onMove }: { results: Result[]; tool: Tool; pending?: V; onPlace: (p: V, hit?: string) => void; onMove: (id: string, p: V) => void }) {
+  const [cursor, setCursor] = useState<V | null>(null)
   const [view, setView] = useState({ x: 0, y: 0, range: 8 })
   const [size, setSize] = useState({ w: 800, h: 560 })
   const ref = useRef<SVGSVGElement>(null)
@@ -135,20 +137,26 @@ function Plot({ results, tool, onPoint, onMove }: { results: Result[]; tool: boo
   for (let x = Math.floor((view.x - view.range) / step) * step; x <= view.x + view.range; x += step) lines.push(<g key={`x${x}`}><line x1={px(x)} x2={px(x)} y2={size.h} stroke={Math.abs(x) < 1e-8 ? '#708197' : '#283448'} /><text x={px(x) + 4} y={Math.min(size.h - 10, Math.max(16, py(0) + 16))} fill="#98a8bf" fontSize={10}>{fmt(x)}</text></g>)
   const ry = size.h / unit / 2
   for (let y = Math.floor((view.y - ry) / step) * step; y <= view.y + ry; y += step) lines.push(<g key={`y${y}`}><line y1={py(y)} y2={py(y)} x2={size.w} stroke={Math.abs(y) < 1e-8 ? '#708197' : '#283448'} /><text x={Math.max(5, Math.min(size.w - 30, px(0) + 5))} y={py(y) - 5} fill="#98a8bf" fontSize={10}>{fmt(y)}</text></g>)
-  return <svg ref={ref} className="studio-svg" aria-label="2D coordinate graph" onWheel={e => { e.preventDefault(); setView(v => ({ ...v, range: Math.min(100, Math.max(0.25, v.range * (e.deltaY > 0 ? 1.12 : 0.89))) })) }} onPointerDown={e => {
-    if (tool) { onPoint(toWorld(e.clientX, e.clientY)); return }
+  return <><svg ref={ref} className="studio-svg" aria-label="2D coordinate graph" onWheel={e => { e.preventDefault(); setView(v => ({ ...v, range: Math.min(100, Math.max(0.25, v.range * (e.deltaY > 0 ? 1.12 : 0.89))) })) }} onPointerDown={e => {
+    if (tool !== 'move') { onPlace(toWorld(e.clientX, e.clientY), (e.target as SVGElement).dataset.name); return }
     const id = (e.target as SVGElement).dataset.point
     drag.current = { id, x: e.clientX, y: e.clientY, cx: view.x, cy: view.y, z: 0 }; e.currentTarget.setPointerCapture(e.pointerId)
-  }} onPointerMove={e => { const d = drag.current; if (!d) return; if (d.id) onMove(d.id, toWorld(e.clientX, e.clientY)); else setView(v => ({ ...v, x: d.cx - (e.clientX - d.x) / unit, y: d.cy + (e.clientY - d.y) / unit })) }} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }}>
+  }} onPointerMove={e => { if (tool !== 'move') setCursor(toWorld(e.clientX, e.clientY)); const d = drag.current; if (!d) return; if (d.id) onMove(d.id, toWorld(e.clientX, e.clientY)); else setView(v => ({ ...v, x: d.cx - (e.clientX - d.x) / unit, y: d.cy + (e.clientY - d.y) / unit })) }} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }} onPointerLeave={() => setCursor(null)} style={{ cursor: tool === 'move' ? 'grab' : 'crosshair' }}>
     {lines}
     {results.map((r, i) => {
       const color = colors[i % colors.length]; if (!r.shape || !r.entry.visible) return null
       return <g key={r.entry.id}>{leaves(r.shape).map((s, k) => draw(s, k, r, color))}</g>
     })}
+    {pending && <circle cx={px(pending[0])} cy={py(pending[1])} r={12} fill="none" stroke="#facc15" strokeWidth={2} pointerEvents="none" />}
+    {pending && cursor && tool !== 'point' && (tool === 'circle'
+      ? <circle cx={px(pending[0])} cy={py(pending[1])} r={Math.hypot(cursor[0] - pending[0], cursor[1] - pending[1]) * unit} fill="none" stroke="#facc15" strokeDasharray="5 5" pointerEvents="none" />
+      : <line x1={px(pending[0])} y1={py(pending[1])} x2={px(cursor[0])} y2={py(cursor[1])} stroke="#facc15" strokeDasharray="5 5" pointerEvents="none" />)}
     <text x={size.w - 20} y={Math.max(20, Math.min(size.h - 20, py(0) - 10))} fill="#e2e8f0">x</text><text x={Math.max(12, Math.min(size.w - 20, px(0) - 15))} y={20} fill="#e2e8f0">y</text>
   </svg>
+  <div className="studio-zoom">{([['+', 0.8], ['−', 1.25]] as const).map(([label, k]) => <button key={label} aria-label={label === '+' ? 'Zoom in' : 'Zoom out'} onClick={() => setView(v => ({ ...v, range: Math.min(100, Math.max(0.25, v.range * k)) }))}>{label}</button>)}</div>
+  </>
   function draw(s: Shape, k: number, r: Result, color: string) {
-      if (s.kind === 'point') return <g key={k}><circle data-point={/^\s*(?:\w+\s*=\s*)?\([^()]+\)\s*$/.test(r.entry.text) ? r.entry.id : undefined} cx={px(s.p[0])} cy={py(s.p[1])} r={r.shape!.kind === 'group' ? 5 : 7} fill={color} stroke="#111827" strokeWidth={2} style={{ cursor: 'grab' }} />{r.shape!.kind !== 'group' && <text x={px(s.p[0]) + 12} y={py(s.p[1]) - 10} fill={color} fontSize={13}>{r.name}</text>}</g>
+      if (s.kind === 'point') return <g key={k}><circle data-point={/^\s*(?:\w+\s*=\s*)?\([^()]+\)\s*$/.test(r.entry.text) ? r.entry.id : undefined} data-name={r.shape!.kind !== 'group' && !r.name.startsWith('#') ? r.name : undefined} cx={px(s.p[0])} cy={py(s.p[1])} r={r.shape!.kind === 'group' ? 5 : 7} fill={color} stroke="#111827" strokeWidth={2} style={{ cursor: 'grab' }} />{r.shape!.kind !== 'group' && <text x={px(s.p[0]) + 12} y={py(s.p[1]) - 10} fill={color} fontSize={13}>{r.name}</text>}</g>
       if (s.kind === 'circle' && !s.n) return <circle key={k} cx={px(s.p[0])} cy={py(s.p[1])} r={s.r * unit} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.045} pointerEvents="none" />
       if (s.kind === 'line' || s.kind === 'segment') { const t = s.kind === 'line' ? 1e4 : 1, a = s.kind === 'line' ? add(s.p, scale(s.v, -t)) : s.p, b = add(s.p, scale(s.v, t)); return <line key={k} x1={px(a[0])} y1={py(a[1])} x2={px(b[0])} y2={py(b[1])} stroke={color} strokeWidth={s.dash ? 1.5 : 2} strokeDasharray={s.dash ? '6 5' : undefined} pointerEvents="none" /> }
       if (s.kind === 'curve') { let d = '', previous: number | null = null; const half = s.axis === 'x' ? ry : view.range; for (let k = 0; k <= 800; k++) { const t = (s.axis === 'x' ? view.y - half : view.x - half) + k / 800 * 2 * half, x = s.axis === 'x' ? s.f(0, t) : t, y = s.axis === 'x' ? t : s.f(t, 0), sy = py(y); if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(px(x)) > size.w * 8 || Math.abs(sy) > size.h * 8) { previous = null; continue } d += `${previous === null || Math.abs(sy - previous) > size.h ? 'M' : 'L'}${px(x)},${sy} `; previous = sy } return <path key={k} d={d} stroke={color} strokeWidth={2} fill="none" pointerEvents="none" /> }
@@ -158,7 +166,7 @@ function Plot({ results, tool, onPoint, onMove }: { results: Result[]; tool: boo
 }
 export function GeometryStudio() {
   const t = useT(), [saved] = useState(initial), [entries, setEntries] = useState(saved.entries), [mode, setMode] = useState(saved.mode)
-  const [tool, setTool] = useState(false), [reset, setReset] = useState(0), [storageError, setStorageError] = useState(false)
+  const [tool, setToolState] = useState<Tool>('move'), [pending, setPending] = useState<string | null>(null), [reset, setReset] = useState(0), [storageError, setStorageError] = useState(false)
   const [past, setPast] = useState<Entry[][]>([]), [future, setFuture] = useState<Entry[][]>([])
   const results = useMemo(() => calculate(entries), [entries])
   const readyCount=results.filter(r=>r.shape&&!r.error).length
@@ -167,17 +175,38 @@ export function GeometryStudio() {
   const update = (id: string, patch: Partial<Entry>) => change(entries.map(r => r.id === id ? { ...r, ...patch } : r))
   const append = (text: string) => { if (entries.length < 60) change([...entries, ...rows([text])]) }
   const unique = (prefix: string) => { let n = 1; while (results.some(r => r.name === `${prefix}${n}`)) n++; return `${prefix}${n}` }
-  const addPoint = (p: V) => { append(`${unique('P')} = (${p.slice(0, mode === '2D' ? 2 : 3).join(',')})`); setTool(false) }
+  const addPoint = (p: V) => append(`${unique('P')} = (${p.slice(0, mode === '2D' ? 2 : 3).join(',')})`)
+  const setTool = (t: Tool | false) => { setToolState(t || 'move'); setPending(null) }
+  const pendingPoint = results.find(r => r.name === pending)?.shape
+  /** Canvas click with a drawing tool: reuse the point under the cursor or create one, then build the object from two points. */
+  const place = (p: V, hit?: string) => {
+    if (entries.length >= 59) return
+    const texts: string[] = []
+    let name = hit
+    if (!name) { name = unique('P'); texts.push(`${name} = (${+p[0].toFixed(2)},${+p[1].toFixed(2)})`) }
+    if (tool !== 'point') {
+      if (!pending) setPending(name)
+      else if (name !== pending) {
+        const prefix = { segment: 's', line: 'l', circle: 'c', move: '', point: '' }[tool]
+        texts.push(`${unique(prefix)} = ${tool}(${pending},${name})`)
+        setPending(null)
+      }
+    }
+    if (texts.length) change([...entries, ...rows(texts)])
+  }
+  useEffect(() => { const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setTool(false) }; window.addEventListener('keydown', esc); return () => window.removeEventListener('keydown', esc) }, [])
   const exportFile = () => { const url = URL.createObjectURL(new Blob([JSON.stringify({ mode, entries }, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = 'analytica-studio.json'; a.click(); URL.revokeObjectURL(url) }
   return <div className="studio">
     <div className="studio-heading"><div><span className="eyebrow">{t('Ruang matematika terbuka', 'An open math workspace')}</span><h1>{t('Studio Geometri', 'Geometry Studio')}<span>.</span></h1><p>{t('Buat objek. Hubungkan ide. Hitung langsung.', 'Create objects. Connect ideas. Calculate live.')}</p></div><div className="studio-mode">{(['2D', '3D'] as const).map(m => <button key={m} aria-pressed={mode === m} onClick={() => { setMode(m); setTool(false) }}>{m}</button>)}</div></div>
     <SyllabusWorkbench course="geometry" onLoad={(texts,dimension)=>{change(rows(texts));setMode(dimension ?? '2D');setTool(false);setReset(r=>r+1)}} />
     <div className="studio-toolbar">
       <div className="studio-tool-group" role="group" aria-label={t('Buat objek','Create objects')}>
-      <button onClick={() => mode === '2D' ? setTool(!tool) : addPoint([1, 1, 1])} aria-pressed={tool}>+ {t('Titik', 'Point')}</button>
-      <button onClick={() => append(`${unique('l')} = line((-2,0,0),(2,2,${mode === '3D' ? 3 : 0}))`)}>+ {t('Garis', 'Line')}</button>
+      {mode === '2D' ? ([['move', t('Geser', 'Move')], ['point', t('Titik', 'Point')], ['segment', t('Ruas', 'Segment')], ['line', t('Garis', 'Line')], ['circle', t('Lingkaran', 'Circle')]] as const).map(([id, label]) =>
+        <button key={id} onClick={() => setTool(id)} aria-pressed={tool === id}>{id === 'move' ? '✥' : '✎'} {label}</button>) : <>
+      <button onClick={() => addPoint([1, 1, 1])}>+ {t('Titik', 'Point')}</button>
+      <button onClick={() => append(`${unique('l')} = line((-2,0,0),(2,2,3))`)}>+ {t('Garis', 'Line')}</button>
       <button onClick={() => append(`${unique('c')} = circle((0,0,0),2)`)}>+ {t('Lingkaran', 'Circle')}</button>
-      <button onClick={() => append(`${unique('s')} = segment((0,0,0),(3,2,0))`)}>+ {t('Ruas', 'Segment')}</button>
+      <button onClick={() => append(`${unique('s')} = segment((0,0,0),(3,2,0))`)}>+ {t('Ruas', 'Segment')}</button></>}
       {mode === '3D' && <><button onClick={() => append(`${unique('p')} = plane(1,1,1,-3)`)}>+ {t('Bidang', 'Plane')}</button><button onClick={() => append(`${unique('s')} = sphere((0,0,0),2)`)}>+ {t('Bola', 'Sphere')}</button></>}
       <button onClick={() => append(mode === '2D' ? 'y = x^2' : 'z = sin(x)*cos(y)')}>+ {t('Fungsi', 'Function')}</button>
       </div><div className="studio-tool-group studio-history" role="group" aria-label={t('Riwayat dan ekspor','History and export')}>
@@ -196,8 +225,13 @@ export function GeometryStudio() {
       </div>)}</div><button className="studio-add" disabled={entries.length >= 60} onClick={() => append('')}>+ {t('Tambah ekspresi', 'Add expression')}</button>
       <p className="studio-save">{storageError ? t('Penyimpanan tidak tersedia. Ekspor untuk menyimpan.', 'Storage unavailable. Export to keep your work.') : t('Disimpan di browser ini', 'Saved in this browser')}</p>
     </aside><section className="studio-stage"><div className="studio-stage-top"><span>{mode === '2D' ? 'x · y' : 'x · y · z'} / {t('KOORDINAT', 'COORDINATES')}</span><button onClick={() => setReset(r => r + 1)}>{mode === '2D' ? t('Sesuaikan objek', 'Fit objects') : t('Atur ulang tampilan', 'Reset view')}</button></div>
-      <div className="studio-viewport">{mode === '2D' ? <Plot key={reset} results={results} tool={tool} onPoint={addPoint} onMove={(id, p) => { const r = results.find(x => x.entry.id === id)!; if (r.shape?.kind === 'point') { p[2] = r.shape.p[2]; update(id, { text: `${r.name.startsWith('#') ? '' : r.name + ' = '}(${p.join(',')})` }) } }} /> : <SceneBoundary key={reset} fallback={t('WebGL tidak tersedia. Gunakan tampilan 2D; perhitungan tetap aktif.', 'WebGL is unavailable. Use the 2D view; calculations remain available.')}><Scene results={results} /></SceneBoundary>}</div>
-      <div className="studio-stage-bottom">{tool ? t('Klik grafik untuk menaruh titik.', 'Click the graph to place a point.') : mode === '2D' ? t('Seret titik • Seret latar untuk geser • Gulir untuk zoom', 'Drag points • Drag background to pan • Scroll to zoom') : t('Seret untuk rotasi • Klik kanan untuk geser • Gulir untuk zoom', 'Drag to orbit • Right-drag to pan • Scroll to zoom')}</div>
+      <div className="studio-viewport">{mode === '2D' ? <Plot key={reset} results={results} tool={tool} pending={pendingPoint?.kind === 'point' ? pendingPoint.p : undefined} onPlace={place} onMove={(id, p) => { const r = results.find(x => x.entry.id === id)!; if (r.shape?.kind === 'point') { p[2] = r.shape.p[2]; update(id, { text: `${r.name.startsWith('#') ? '' : r.name + ' = '}(${p.join(',')})` }) } }} /> : <SceneBoundary key={reset} fallback={t('WebGL tidak tersedia. Gunakan tampilan 2D; perhitungan tetap aktif.', 'WebGL is unavailable. Use the 2D view; calculations remain available.')}><Scene results={results} /></SceneBoundary>}</div>
+      <div className="studio-stage-bottom">{mode === '2D' && tool !== 'move' ? ({
+          point: t('Klik di mana saja untuk menaruh titik.', 'Click anywhere to place a point.'),
+          segment: pending ? t(`Klik titik kedua untuk ruas dari ${pending}. Esc untuk batal.`, `Click a second point to finish the segment from ${pending}. Esc to cancel.`) : t('Klik titik pertama (titik yang sudah ada juga bisa diklik).', 'Click the first point (you can click an existing point too).'),
+          line: pending ? t(`Klik titik kedua untuk garis melalui ${pending}.`, `Click a second point for the line through ${pending}.`) : t('Klik titik pertama garis.', 'Click the first point of the line.'),
+          circle: pending ? t(`Klik titik pada lingkaran (pusat ${pending}).`, `Click a point on the circle (centre ${pending}).`) : t('Klik pusat lingkaran.', 'Click the centre of the circle.'),
+        } as Record<string, string>)[tool] : mode === '2D' ? t('Seret titik • Seret latar untuk geser • Gulir untuk zoom', 'Drag points • Drag background to pan • Scroll to zoom') : t('Seret untuk rotasi • Klik kanan untuk geser • Gulir untuk zoom', 'Drag to orbit • Right-drag to pan • Scroll to zoom')}</div>
     </section></div>
     <div className="studio-help"><div><h2>{t('Mulai dari sebuah ide.', 'Start with an idea.')}</h2><p>{t('Objek dihitung dari atas ke bawah. Gunakan namanya untuk membuat hubungan.', 'Rows calculate from top to bottom. Use object names to build relationships.')}</p><p>{t('Pilih "Muat contoh" untuk lembar kerja per topik kuliah. Setiap baris hasil hitungan punya panel Langkah berisi penyelesaian tertulis.', 'Pick "Load example" for a worksheet per course topic. Every computed row has a Steps panel with the written working.')}</p></div><div><code>l = (x-1)/2 = y/3 = z<br />p = 2x - y + 2z = 3<br />position(l,m) · distance(l,m)<br />perpendicular(l,m)<br />projection(P,p) · parallel(P,l)<br />intersect(l,p) · angle(l,p)<br />plane(A,B,C)</code></div><div><code>c = x^2+y^2-4x-2y-4=0<br />center(c) · radius(c)<br />power(P,c) · polar(P,c)<br />tangent(P,c)<br />radical(c1,c2[,c3])<br />pencil(c1,c2,1/2)<br />intersect(s,p)</code></div><div><code>C = 5x^2+24xy-2y^2+4x-1=0<br />classify(C) · center(C)<br />Q = x^2+y^2-3z^2-2xy+4z=0<br />T = affine(a,b,c,d,e,f)<br />rotate(90,P) · reflect(l)<br />translate((2,1)) · scale(2,P)<br />apply(T,C) · classify(T)</code></div></div>
     <p className="studio-note">{t('Persamaan berderajat dua menjadi lingkaran, bola, konik atau kuadrik. Rotasi dalam derajat; apply dan transformasi bekerja di bidang. Bidang: ax + by + cz + d = 0. Lingkaran 3D sejajar bidang xy. Tampilan 2D memproyeksikan koordinat x,y; perhitungan memakai ketiga koordinat. Sudut dalam derajat; fungsi trigonometri memakai radian. Irisan mendukung garis, bidang, lingkaran dan bola. Grafik 2D menerima y = f(x), x = f(y), dan F(x,y) = 0; persamaan linear 3D menjadi bidang. Grafik disampling secara numerik.', 'Second-degree equations become circles, spheres, conics or quadrics. Rotations are in degrees; apply and maps work in the plane. Planes use ax + by + cz + d = 0. 3D circles lie parallel to the xy plane. The 2D view projects x,y; calculations use all three coordinates. Angles are in degrees; trig inputs use radians. Intersections support lines, planes, circles and spheres. 2D graphs accept y = f(x), x = f(y), and F(x,y) = 0; linear 3D equations become planes. Graphs are sampled numerically.')}</p>

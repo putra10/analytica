@@ -12,11 +12,11 @@ export const TABS = [
 
 export type TabId = (typeof TABS)[number]['id']
 
-export function TabNav({ active, onChange }: { active: TabId; onChange: (t: TabId) => void }) {
+export function TabNav({ active, onChange, only }: { active: TabId; onChange: (t: TabId) => void; only?: TabId[] }) {
   const t = useT()
   return (
     <nav className="flex gap-1 rounded-full border border-border bg-card p-1 shadow-[var(--shadow-sm)]" role="tablist">
-      {TABS.map((tab) => (
+      {TABS.filter((tab) => !only || only.includes(tab.id)).map((tab, i) => (
         <button
           key={tab.id}
           role="tab"
@@ -31,7 +31,7 @@ export function TabNav({ active, onChange }: { active: TabId; onChange: (t: TabI
             <motion.span layoutId="tab-bg" className="absolute inset-0 rounded-full bg-slate-100" transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }} />
           )}
           <span className="relative flex items-center gap-2">
-            <span className={cn('font-mono text-[10px] tracking-wider', active === tab.id ? 'opacity-70' : 'text-slate-500')}>{tab.num}</span>
+            <span className={cn('font-mono text-[10px] tracking-wider', active === tab.id ? 'opacity-70' : 'text-slate-500')}>{String(i + 1).padStart(2, '0')}</span>
             <tab.icon size={15} />
             <span className="hidden sm:inline">{t(tab.id_label, tab.en_label)}</span>
           </span>

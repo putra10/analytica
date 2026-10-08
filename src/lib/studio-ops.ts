@@ -727,7 +727,11 @@ export function command(op: string, args: string[], ctx: Ctx): Out {
       if (op === 'segment') steps.push(st('Panjang ruas:', 'Segment length:', `|AB| = ${normTex(d3 ? v : v.slice(0, 2))}`))
       return { shape: l, steps, summary: op === 'segment' ? lab(`panjang ${txta(norm3(v))}`, `length ${txta(norm3(v))}`) : lineSummary(l, d3) }
     }
-    case 'circle': case 'sphere': { need(2); const p = ctx.point(args[0]), r = ctx.scalar(args[1]); if (r <= 0) throw Error('Radius must be positive'); return ballDef(op, p, r) }
+    case 'circle': case 'sphere': {
+      need(2); const p = ctx.point(args[0])
+      // second argument: a radius, or a point on the circle (so dragging that point resizes it)
+      let r: number; try { r = norm3(sub3(ctx.point(args[1]), p)) } catch { r = ctx.scalar(args[1]) }
+      if (r <= 0) throw Error('Radius must be positive'); return ballDef(op, p, r) }
     case 'plane': {
       need(3, 4)
       if (args.length === 4) { const [a, b, c, D] = args.map(ctx.scalar); const n: V = [a, b, c]; if (norm3(n) < 1e-10) throw Error('Plane normal cannot be zero'); const s: Pl = { kind: 'plane', n, D }; return { shape: s, summary: planeSummary(s) } }
