@@ -50,6 +50,17 @@ export const twoRowTex = (p: Perm) =>
 export function parsePerm(text: string, n: number): Perm | null {
   const s = text.trim()
   if (s === '' || s === 'e' || s === '()') return identity(n)
+  // two-row notation "top / bottom": column i sends top[i] to bottom[i], top row in any order
+  if (s.includes('/')) {
+    const rows = s.replace(/[()]/g, '').split('/')
+    if (rows.length !== 2) return null
+    const [top, bottom] = rows.map((r) => r.split(/[\s,]+/).filter(Boolean).map(Number))
+    const ok = (r: number[]) => r.length === n && r.every((x) => Number.isInteger(x) && x >= 1 && x <= n) && new Set(r).size === n
+    if (!ok(top) || !ok(bottom)) return null
+    const p = identity(n)
+    top.forEach((x, i) => { p[x - 1] = bottom[i] - 1 })
+    return p
+  }
   if (s.includes('(')) {
     const groups = [...s.matchAll(/\(([^()]*)\)/g)].map((m) => m[1].trim().split(/[\s,]+/).filter(Boolean).map(Number))
     if (!groups.length || groups.some((g) => g.some((x) => !Number.isInteger(x) || x < 1 || x > n) || new Set(g).size !== g.length)) return null

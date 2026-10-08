@@ -156,10 +156,10 @@ export function PermutationLab() {
               {([['σ', sText, setSText, sigma], ['τ', tText, setTText, tau]] as const).map(([name, text, set, val]) => (
                 <label key={name} className="block">
                   <span className="text-[11px] text-slate-400">{name}</span>
-                  <TextField value={text} onChange={set} invalid={!val} placeholder="(1 2 3)(4 5)  /  2 3 1 5 4" />
+                  <TextField value={text} onChange={set} invalid={!val} placeholder="(1 2 3)(4 5)  ·  2 3 1 5 4  ·  1 2 3 / 2 3 1" />
                 </label>
               ))}
-              <p className="text-[11px] text-slate-500">{t('Notasi siklus atau notasi satu baris (baris kedua dari simbol dua baris).', 'Cycle notation or one-line notation (second row of the two-row symbol).')}</p>
+              <p className="text-[11px] text-slate-500">{t('Notasi siklus, notasi satu baris (baris bawah saja), atau dua baris dipisah "/": baris atas / baris bawah, mis. 3 1 2 / 1 2 3.', 'Cycle notation, one-line notation (bottom row only), or both rows separated by "/": top row / bottom row, e.g. 3 1 2 / 1 2 3.')}</p>
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {EXAMPLES.map((ex, i) => <Chip key={i} onClick={() => { setN(ex.n); setSText(ex.s); setTText(ex.t) }}>{ex.label}</Chip>)}
