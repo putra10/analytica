@@ -24,7 +24,7 @@ assert(reduceQuadric(QUADRIC_PRESETS.find((p) => p.id === 'v343')!.q).type === '
 console.log(process.exitCode ? 'FAILED' : 'all checks passed')
 
 // ---------- algebra ----------
-import { symmetric, dihedral, cyclic, product, quaternion, units, isomorphism, subgroups, isNormal, quotient, isAbelian, elementOrder, homomorphisms } from '../src/lib/group-theory'
+import { symmetric, dihedral, cyclic, product, quaternion, units, isomorphism, subgroups, isNormal, quotient, isAbelian, elementOrder, homomorphisms, secondIsoTheorem, thirdIsoTheorem, correspondenceTheorem } from '../src/lib/group-theory'
 import { parsePerm, compose, cycleTex, order, isEven } from '../src/lib/permutations'
 import { zpIrreducible, qIrreducible, parsePoly, pDivMod, polyTex, znInfo } from '../src/lib/rings'
 import { analyzeConic, CONIC_PRESETS } from '../src/lib/conics'
@@ -37,6 +37,8 @@ assert(compose(s, tt).join(',') === '0,4,3,1,2', `Herstein στ example: ${compo
 const sh = parsePerm('3 4 5 6 7 8 9 10 11 12 13 1 2', 13)!, mv = parsePerm('(1 12 11 10 9 8 7 6 5 4 3 2)', 13)!
 assert(order(sh) === 13 && order(compose(sh, mv)) === 12, `shuffle orders ${order(sh)} ${order(compose(sh, mv))}`)
 assert(cycleTex(parsePerm('(1 2 3)(4 5)', 5)!) === String.raw`(1\;2\;3)(4\;5)` && !isEven(parsePerm('(1 2 3)(4 5)', 5)!), 'cycle parse / parity')
+assert(parsePerm('1 2 3 4 5 6 / 6 4 5 2 1 3', 6)!.join(',') === parsePerm('6 4 5 2 1 3', 6)!.join(','), 'two-row with sorted top = one-line')
+assert(parsePerm('3 1 2 / 1 2 3', 3)!.join(',') === '1,2,0' && parsePerm('1 2 / 1', 2) === null && parsePerm('1 1 / 1 2', 2) === null, 'two-row with scrambled top / bad rows')
 
 // S3 ≅ D3, Z6 ≅ Z2×Z3, Z4 ≇ Z2×Z2, Q8 ≇ D4, U(8) ≅ Z2×Z2
 assert(isomorphism(symmetric(3), dihedral(3)).isomorphic, 'S3 ≅ D3')
@@ -48,6 +50,29 @@ assert(isomorphism(units(8), product(2, 2)).isomorphic, 'U8 ≅ Z2×Z2')
 assert(subgroups(symmetric(4)).length === 30, `S4 subgroups: ${subgroups(symmetric(4)).length}`)
 const S3 = symmetric(3), A3 = subgroups(S3).find((h) => h.length === 3)!
 assert(isNormal(S3, A3) && quotient(S3, A3).order === 2 && isAbelian(quotient(S3, A3)), 'A3 normal in S3')
+
+// Homomorphism theorems (2.7), checked exhaustively on every subgroup choice of a few groups
+for (const G of [symmetric(4), dihedral(4), quaternion(), cyclic(12), product(2, 4)]) {
+  const subs = subgroups(G), normals = subs.filter((h) => isNormal(G, h))
+  for (const N of normals) {
+    const c = correspondenceTheorem(G, N)
+    assert(c.rows.length === c.quotientSubgroups && c.rows.every((r) => r.normal === r.normalInQ && r.image.length * N.length === r.H.length), `${G.id}: correspondence |N|=${N.length}`)
+    for (const H of subs) {
+      const r = secondIsoTheorem(G, H, N)
+      assert(r.HNisSubgroup && r.wellDefined && r.bijective && r.HN.length * r.meet.length === H.length * N.length, `${G.id}: second iso |H|=${H.length} |N|=${N.length}`)
+    }
+    for (const K of normals.filter((k) => k.every((x) => N.includes(x)))) {
+      const r = thirdIsoTheorem(G, N, K)
+      assert(r.wellDefined && r.onto && r.kernelIsNK && r.GK.length === r.NK.length * r.GN.length, `${G.id}: third iso |N|=${N.length} |K|=${K.length}`)
+    }
+  }
+}
+// S4 with N = V4, H of order 3: HN = A4 and HN/N ≅ H/(H∩N) has 3 elements
+{
+  const S4 = symmetric(4), V4 = subgroups(S4).find((h) => h.length === 4 && isNormal(S4, h))!, H3 = subgroups(S4).find((h) => h.length === 3)!
+  const r = secondIsoTheorem(S4, H3, V4)
+  assert(r.HN.length === 12 && r.meet.length === 1 && r.top.length === 3, `S4 second iso example: |HN|=${r.HN.length}`)
+}
 
 // Hom counts: S3 → Z2 is trivial + sign; Hom(D4,Z2) = 4; End(S4) = 58
 assert(homomorphisms(S3, cyclic(2)).length === 2, `|Hom(S3,Z2)| = ${homomorphisms(S3, cyclic(2)).length}`)

@@ -87,6 +87,61 @@ export function quotient(g: Group, N: number[]): Group {
   }
 }
 
+/** Left cosets aK for a ∈ S (S a union of K-cosets); representative = first element of S met. */
+export function cosetsWithin(g: Group, S: number[], K: number[]): { rep: number; elems: number[] }[] {
+  const out: { rep: number; elems: number[] }[] = [], covered = new Set<number>()
+  for (const a of S) {
+    if (covered.has(a)) continue
+    const c = leftCoset(g, a, K)
+    c.forEach((x) => covered.add(x))
+    out.push({ rep: a, elems: c })
+  }
+  return out
+}
+
+const productSet = (g: Group, A: number[], B: number[]) => [...new Set(A.flatMap((a) => B.map((b) => mul(g, a, b))))].sort((x, y) => x - y)
+const owner = (cs: { elems: number[] }[], x: number) => cs.findIndex((c) => c.elems.includes(x))
+
+/**
+ * Second homomorphism theorem (Herstein 2.7): H ≤ G, N ◁ G ⇒ HN/N ≅ H/(H∩N) via h(H∩N) ↦ hN.
+ * `top` = HN/N, `bottom` = H/(H∩N), `map[i]` = the top coset that bottom coset i is sent to.
+ */
+export function secondIsoTheorem(g: Group, H: number[], N: number[]) {
+  const HN = productSet(g, H, N), meet = H.filter((x) => N.includes(x))
+  const top = cosetsWithin(g, HN, N), bottom = cosetsWithin(g, H, meet)
+  const map = bottom.map((c) => owner(top, c.rep))
+  return {
+    HN, meet, top, bottom, map,
+    HNisSubgroup: generate(g, HN).length === HN.length,
+    wellDefined: bottom.every((c, i) => c.elems.every((x) => top[map[i]].elems.includes(x))),
+    bijective: map.length === top.length && new Set(map).size === top.length,
+  }
+}
+
+/** Third homomorphism theorem: K ⊆ N, both normal ⇒ (G/K)/(N/K) ≅ G/N via gK ↦ gN, with kernel N/K. */
+export function thirdIsoTheorem(g: Group, N: number[], K: number[]) {
+  const all = range(g.order)
+  const GK = cosetsWithin(g, all, K), NK = cosetsWithin(g, N, K), GN = cosetsWithin(g, all, N)
+  const map = GK.map((c) => owner(GN, c.rep)), home = owner(GN, g.e)
+  const kernel = GK.flatMap((_, i) => (map[i] === home ? [i] : []))
+  return {
+    GK, NK, GN, map, kernel, home,
+    wellDefined: GK.every((c, i) => c.elems.every((x) => GN[map[i]].elems.includes(x))),
+    onto: new Set(map).size === GN.length,
+    kernelIsNK: kernel.length === NK.length && kernel.every((i) => N.includes(GK[i].rep)),
+  }
+}
+
+/** Correspondence theorem: subgroups H ⊇ N of G ↔ subgroups H/N of G/N, normality and index preserved. */
+export function correspondenceTheorem(g: Group, N: number[]) {
+  const Q = quotient(g, N), qCosets = cosets(g, N, 'left')
+  const rows = subgroups(g).filter((H) => N.every((x) => H.includes(x))).map((H) => {
+    const image = cosetsWithin(g, H, N), inQ = image.map((c) => owner(qCosets, c.rep)).sort((a, b) => a - b)
+    return { H, image, inQ, normal: isNormal(g, H), normalInQ: isNormal(Q, inQ) }
+  })
+  return { Q, rows, quotientSubgroups: subgroups(Q).length }
+}
+
 /** A generating set of size ≤ 2 (or the whole element list if none). */
 export function smallGeneratingSet(g: Group): number[] {
   for (let a = 0; a < g.order; a++) if (generate(g, [a]).length === g.order) return [a]
